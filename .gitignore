@@ -1,0 +1,22 @@
+# Secrets / Konfiguration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs / Modelle / Audio
+*.log
+*.onnx
+*.gguf
+*.wav
