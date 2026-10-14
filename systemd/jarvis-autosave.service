@@ -1,0 +1,8 @@
+[Unit]
+Description=JARVIS Autosave nach GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/jarvis-autosave.sh

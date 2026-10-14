@@ -1,0 +1,16 @@
+[Unit]
+Description=JARVIS Voice Proxy v1.1
+After=network.target jarvis-proxy.service
+Wants=jarvis-proxy.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/jarvis
+ExecStart=/usr/bin/python3 /opt/jarvis/voice_proxy.py
+Restart=always
+RestartSec=5
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

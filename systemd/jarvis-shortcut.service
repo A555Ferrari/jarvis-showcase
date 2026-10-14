@@ -1,0 +1,14 @@
+[Unit]
+Description=JARVIS Kurzbefehl-Endpunkt
+After=network.target jarvis-proxy.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/jarvis
+ExecStart=/usr/bin/python3 /opt/jarvis/jarvis_shortcut.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

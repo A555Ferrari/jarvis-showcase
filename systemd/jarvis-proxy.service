@@ -1,0 +1,13 @@
+[Unit]
+Description=JARVIS Routing Proxy v1
+After=network.target ollama.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/jarvis/routing_proxy.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

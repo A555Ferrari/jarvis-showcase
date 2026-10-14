@@ -1,0 +1,11 @@
+[Unit]
+Description=JARVIS Firewall (Dienste nur Tailscale/lokal, nicht LAN)
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/jarvis-fw.sh
+
+[Install]
+WantedBy=multi-user.target

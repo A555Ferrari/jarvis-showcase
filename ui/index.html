@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>JARVIS // PC</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#06060E;--surface:#0E0E1A;--border:#1C1C32;--text:#A8A8C4;--dim:#3C3C58;--green:#00E676;--red:#FF1744;--blue:#2255DD}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;transition:background .9s;-webkit-tap-highlight-color:transparent;user-select:none}
+body.state-on{--bg:#2A2A2A;--surface:#E0E0DF;--border:#C4C4C2;--text:#18182A;--dim:#84849A}
+.badge{position:fixed;top:20px;right:20px;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.badge svg{width:36px;height:36px}
+.badge span{font-size:7px;letter-spacing:.45em;text-transform:uppercase;color:var(--dim)}
+.header{text-align:center;margin-bottom:52px}
+.status-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--dim);flex-shrink:0;transition:background .5s,box-shadow .5s}
+.dot.on{background:var(--green);box-shadow:0 0 10px var(--green);animation:blink 2.5s ease-in-out infinite}
+.dot.off{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.status-text{font-size:12px;letter-spacing:.3em;font-weight:bold;text-transform:uppercase}
+.subtitle{font-size:8px;letter-spacing:.5em;text-transform:uppercase;color:var(--dim)}
+.panel{display:flex;align-items:flex-end}
+.divider{width:1px;height:80px;background:var(--border);margin:0 40px;align-self:center}
+.unit{display:flex;flex-direction:column;align-items:center;gap:11px}
+.unit-label{font-size:8px;letter-spacing:.35em;text-transform:uppercase;color:var(--dim)}
+.housing{width:110px;height:170px;position:relative}
+.action-btn{position:absolute;inset:0;border:none;border-radius:5px;background:var(--surface);font-family:inherit;font-size:22px;font-weight:bold;letter-spacing:.2em;cursor:pointer;outline:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:opacity .3s}
+.action-btn.an{color:var(--green);border:1px solid var(--green)}
+.action-btn.aus{color:var(--red);border:1px solid var(--red)}
+.action-btn:disabled{opacity:.18;cursor:default}
+.btn-sub{font-size:8px;letter-spacing:.2em;opacity:.5}
+.action-btn.an.firing{animation:fire-green .55s ease-out forwards}
+.action-btn.aus.firing{animation:fire-red .55s ease-out forwards}
+@keyframes fire-green{0%{transform:scale(1);box-shadow:none}30%{transform:scale(.96);box-shadow:inset 0 0 28px 6px rgba(0,230,118,.35),0 0 22px 6px rgba(0,230,118,.2)}65%{transform:scale(1.02)}100%{transform:scale(1);box-shadow:none}}
+@keyframes fire-red{0%{transform:scale(1);box-shadow:none}30%{transform:scale(.96);box-shadow:inset 0 0 28px 6px rgba(255,23,68,.35),0 0 22px 6px rgba(255,23,68,.2)}65%{transform:scale(1.02)}100%{transform:scale(1);box-shadow:none}}
+.guard{position:absolute;inset:-1px;background:var(--surface, #0E0E1A);border-radius:5px;border:1px solid var(--blue);box-shadow:0 0 8px rgba(34,85,221,.35);transform-origin:top center;transform:perspective(500px) rotateX(0deg);transition:transform .42s cubic-bezier(.4,0,.2,1);cursor:pointer;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;z-index:5}
+.guard.open{transform:perspective(500px) rotateX(-102deg);pointer-events:none}
+.guard-icon{width:28px;height:28px;opacity:.45}
+.guard-label{font-size:8px;letter-spacing:.25em;text-transform:uppercase;color:var(--blue)}
+.guard-tap{font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim)}
+.hint{margin-top:42px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-align:center;min-height:14px}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:9px 22px;border-radius:3px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="badge">
+<svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+<polygon points="18,2 32,10 32,26 18,34 4,26 4,10" stroke="#2255DD" stroke-width="1.2" fill="none" opacity="0.7"/>
+<polygon points="18,6 28,12 28,24 18,30 8,24 8,12" stroke="#2255DD" stroke-width="0.6" fill="none" opacity="0.3"/>
+<text x="18" y="22.5" text-anchor="middle" font-family="'Courier New',monospace" font-size="12" font-weight="bold" fill="#2255DD">J</text>
+</svg>
+<span>J&middot;A&middot;R&middot;V&middot;I&middot;S</span>
+</div>
+<header class="header">
+<div class="status-row"><div class="dot" id="dot"></div><span class="status-text" id="status-text">UNBEKANNT</span></div>
+<div class="subtitle">PC &mdash; Steuerung</div>
+</header>
+<div class="panel">
+<div class="unit">
+<div class="housing">
+<button class="action-btn an" id="btn-an" disabled onclick="execute('an')">AN<span class="btn-sub">Einschalten</span></button>
+<div class="guard" id="guard-an" onclick="toggleGuard('an')">
+<svg class="guard-icon" viewBox="0 0 28 28" fill="none"><rect x="8" y="13" width="12" height="10" rx="2" stroke="#2255DD" stroke-width="1.5"/><path d="M10 13V10a4 4 0 0 1 8 0v3" stroke="#2255DD" stroke-width="1.5" stroke-linecap="round"/><circle cx="14" cy="18" r="1.5" fill="#2255DD"/></svg>
+<div class="guard-label">Gesichert</div>
+<div class="guard-tap">Tippen</div>
+</div>
+</div>
+<div class="unit-label">Wake-on-LAN</div>
+</div>
+<div class="divider"></div>
+<div class="unit">
+<div class="housing">
+<button class="action-btn aus" id="btn-aus" disabled onclick="execute('aus')">AUS<span class="btn-sub">Ausschalten</span></button>
+<div class="guard" id="guard-aus" onclick="toggleGuard('aus')">
+<svg class="guard-icon" viewBox="0 0 28 28" fill="none"><rect x="8" y="13" width="12" height="10" rx="2" stroke="#2255DD" stroke-width="1.5"/><path d="M10 13V10a4 4 0 0 1 8 0v3" stroke="#2255DD" stroke-width="1.5" stroke-linecap="round"/><circle cx="14" cy="18" r="1.5" fill="#2255DD"/></svg>
+<div class="guard-label">Gesichert</div>
+<div class="guard-tap">Tippen</div>
+</div>
+</div>
+<div class="unit-label">Shutdown</div>
+</div>
+</div>
+<div class="hint" id="hint">Sicherung tippen &mdash; dann Schalter dr&uuml;cken</div>
+<div class="toast" id="toast"></div>
+<script>
+const URLS={an:'/webhook/pc-wakeup',aus:'/webhook/pc-shutdown'};
+let activeGuard=null,autoTimer=null;
+function toggleGuard(id){
+  const guard=document.getElementById('guard-'+id);
+  const btn=document.getElementById('btn-'+id);
+  const other=id==='an'?'aus':'an';
+  if(guard.classList.contains('open')){closeGuard(id);return;}
+  if(activeGuard===other)closeGuard(other);
+  guard.classList.add('open');
+  btn.disabled=false;
+  activeGuard=id;
+  document.getElementById('hint').textContent=id==='an'?'Schalter dr\u00FCcken zum Einschalten':'Schalter dr\u00FCcken zum Ausschalten';
+  clearTimeout(autoTimer);
+  autoTimer=setTimeout(()=>closeGuard(id),6000);
+}
+function closeGuard(id){
+  const guard=document.getElementById('guard-'+id);
+  const btn=document.getElementById('btn-'+id);
+  guard.classList.remove('open');
+  btn.disabled=true;
+  if(activeGuard===id)activeGuard=null;
+  document.getElementById('hint').textContent='Sicherung tippen \u2014 dann Schalter dr\u00FCcken';
+  clearTimeout(autoTimer);
+}
+async function execute(id){
+  clearTimeout(autoTimer);
+  const btn=document.getElementById('btn-'+id);
+  btn.classList.add('firing');
+  btn.addEventListener('animationend',()=>btn.classList.remove('firing'),{once:true});
+  setTimeout(()=>closeGuard(id),120);
+  toast(id==='an'?'Befehl gesendet \u25ba Einschalten':'Befehl gesendet \u25ba Ausschalten');
+  try{
+    const res=await fetch(URLS[id]);
+    if(res.ok){setStatus(id==='an'?'on':'off');toast(id==='an'?'PC startet\u2026':'PC f\u00E4hrt herunter\u2026');}
+    else toast('Fehler '+res.status);
+  }catch(e){toast('Verbindungsfehler');}
+}
+function setStatus(state){
+  const dot=document.getElementById('dot');
+  const text=document.getElementById('status-text');
+  dot.className='dot';
+  if(state==='on'){document.body.classList.add('state-on');dot.classList.add('on');text.textContent='AN';}
+  else if(state==='off'){document.body.classList.remove('state-on');dot.classList.add('off');text.textContent='AUS';}
+  else{document.body.classList.remove('state-on');text.textContent='UNBEKANNT';}
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>
