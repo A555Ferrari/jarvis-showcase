@@ -12,6 +12,10 @@ Ein persönlicher Sprach- und Chat-Assistent, der vollständig lokal läuft — 
 
 *Echte JARVIS-Oberfläche (Startbildschirm, Beispiel-Chats). / Real JARVIS UI (home screen, sample chats).*
 
+![JARVIS Privat-Chat / private chat](docs/screenshot-chat.png)
+
+*Echter Privat-Chat mit Beispielfrage (nichts gespeichert). / Real private chat with a sample question (nothing stored).*
+
 ### Live-Demo ausprobieren
 
 Öffne [`demo/index.html`](demo/index.html) im Browser (kein Server nötig). Du kannst JARVIS vorgefertigte Fragen stellen und den Verzweigungen folgen: Erinnerung setzen und verschieben, PC wecken mit Ansage, Herunterfahren mit Bestätigung, Portscan mit Allowlist und der Wahrheits-Wächter, der eine erfundene Erfolgsmeldung korrigiert.
