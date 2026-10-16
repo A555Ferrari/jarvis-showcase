@@ -1,55 +1,93 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JARVIS Demo</title>
+<title>JARVIS · Live-Demo</title>
 <style>
-:root{--bg:#0b1118;--panel:#121b26;--line:#223245;--txt:#d8e6f3;--dim:#7f95aa;--acc:#35c2ff;--ok:#3ddc97;--warn:#ffb347}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
-header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-header b{color:var(--acc);letter-spacing:.15em}header span{color:var(--dim);font-size:13px}
-.badge{margin-left:auto;border:1px solid var(--warn);color:var(--warn);border-radius:99px;padding:2px 10px;font-size:12px}
-#chat{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.m{max-width:min(640px,92%);padding:10px 14px;border-radius:14px;white-space:pre-wrap}
-.u{align-self:flex-end;background:#16405c}.j{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
-.tool{align-self:flex-start;font:12px ui-monospace,monospace;color:var(--ok);border:1px solid #1f5d45;border-radius:8px;padding:3px 9px}
-.note{align-self:flex-start;font-size:13px;color:var(--warn)}
-.fix{border-color:var(--warn)}
-#chips{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;background:var(--panel)}
-#chips p{width:100%;margin:0;color:var(--dim);font-size:12px}
-button{background:#0f2536;color:var(--txt);border:1px solid var(--line);border-radius:99px;padding:8px 14px;font:inherit;cursor:pointer}
-button:hover{border-color:var(--acc);color:var(--acc)}
-</style></head><body>
-<header><b>JARVIS</b><span>Modell: 3B (Laptop) → 26B (Gaming-PC, bei Bedarf)</span><span class="badge">Demo · simuliert, kein Server</span></header>
-<div id="chat"></div>
-<div id="chips"></div>
+:root{--bg:#04060C;--panel:#070A13;--panel2:#0B101C;--line:#131B2E;--line-c:rgba(61,217,240,.22);--text:#CBD8E8;--soft:#8496AE;--dim:#46566F;--cyan:#3DD9F0;--cyan-dim:rgba(61,217,240,.10);--gold:#FFC145;--red:#FF3355;--green:#19E68C;--mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,"Segoe UI",Inter,sans-serif;overflow:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 62% 108%,rgba(61,217,240,.10),transparent 70%),linear-gradient(rgba(61,217,240,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(61,217,240,.028) 1px,transparent 1px);background-size:auto,46px 46px,46px 46px}
+.hud{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase}
+.app{position:relative;display:grid;grid-template-columns:270px 1fr 340px;height:100vh}
+.side,.how{background:linear-gradient(180deg,rgba(9,13,24,.96),rgba(6,9,17,.96));display:flex;flex-direction:column;min-height:0}
+.side{border-right:1px solid var(--line-c)}.how{border-left:1px solid var(--line-c)}
+.brand{padding:18px}.brand b{font-family:var(--mono);font-size:15px;letter-spacing:.42em;color:var(--cyan)}
+.brand div{font-family:var(--mono);font-size:7.5px;letter-spacing:.2em;color:var(--dim);margin-top:4px;text-transform:uppercase}
+.lbl{padding:10px 18px 6px;color:var(--dim)}
+.sc{padding:9px 14px;margin:0 8px;border-radius:4px;border-left:2px solid transparent;cursor:pointer;font-size:13px;color:var(--soft)}
+.sc:hover{background:rgba(61,217,240,.06)}.sc.cur{background:rgba(61,217,240,.10);border-left-color:var(--cyan);color:var(--text)}
+.sc small{display:block;font:8.5px var(--mono);letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.sys{margin-top:auto;border-top:1px solid var(--line);padding:8px 0 12px}
+.sysrow{display:flex;align-items:center;gap:9px;padding:5px 18px;font-size:12.5px;color:var(--soft)}
+.sysrow b{margin-left:auto;font:600 9px var(--mono);letter-spacing:.2em;color:var(--text)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}.dot.on{background:var(--green);box-shadow:0 0 9px var(--green)}.dot.off{background:var(--red);box-shadow:0 0 9px rgba(255,51,85,.7)}.dot.wait{background:var(--gold);box-shadow:0 0 9px var(--gold);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.35}}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+#chat{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:11px}
+.m{max-width:min(620px,92%);padding:11px 15px;border-radius:6px;white-space:pre-wrap}
+.u{align-self:flex-end;background:var(--cyan-dim);border:1px solid var(--line-c)}
+.j{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+.j.fix{border-color:var(--gold)}
+.tool{align-self:flex-start;font:11px var(--mono);color:var(--green);border:1px solid rgba(25,230,140,.3);border-radius:4px;padding:3px 9px}
+.note{align-self:flex-start;font:11px var(--mono);letter-spacing:.06em;color:var(--gold)}
+#chips{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;background:var(--panel)}
+#chips p{width:100%;color:var(--dim)}
+#chips button{font:inherit;color:var(--cyan);background:var(--cyan-dim);border:1px solid var(--line-c);border-radius:4px;padding:8px 13px;cursor:pointer}
+#chips button:hover{box-shadow:0 0 16px rgba(61,217,240,.2)}
+.how{padding:18px;overflow:auto;gap:12px}
+.how h3{font:11px var(--mono);letter-spacing:.22em;color:var(--cyan);text-transform:uppercase}
+.how h4{font:9.5px var(--mono);letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:6px}
+.how p{font-size:13px;color:var(--soft)}
+.how pre{font:11px/1.5 var(--mono);background:#02040a;border:1px solid var(--line);border-radius:4px;padding:9px;white-space:pre-wrap;color:#9fe9f7}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tags span{font:9px var(--mono);letter-spacing:.1em;border:1px solid var(--line-c);border-radius:99px;padding:2px 8px;color:var(--soft)}
+@media(max-width:1000px){.app{grid-template-columns:1fr}.side,.how{display:none}body{overflow:auto}}
+</style></head><body><div class="app">
+<aside class="side"><div class="brand"><b>JARVIS</b><div>Privater KI-Assistent · Live-Demo</div></div>
+<div class="lbl hud">Szenarien</div><div id="list"></div>
+<div class="sys"><div class="sysrow"><span class="dot on"></span>Laptop (24/7)<b>3B</b></div><div class="sysrow"><span class="dot off" id="pcdot"></span>Gaming-PC<b id="pctxt">AUS</b></div></div></aside>
+<main><div id="chat"></div><div id="chips"></div></main>
+<aside class="how" id="how"></aside></div>
 <script>
-// Szenarien als kleiner Graph: jeder Knoten = eine Frage, "next" = sinnvolle Anschlussfragen (Verzweigungen).
-const S={
-start:{next:["rem","wake","shut","scan","guard"]},
-rem:{u:"Erinnere mich morgen um 8 Uhr ans Standup.",tools:["erinnerung_setzen(zeit='morgen 08:00', text='Standup')"],
- r:"Erledigt, Sir. Erinnerung für morgen 08:00 gespeichert: «Standup». Ich schicke dir um die Zeit eine Push-Nachricht.",next:["snooze","rep"]},
-snooze:{u:"Verschieb das um 10 Minuten.",tools:["erinnerung_snooze(minuten=10)"],r:"Verschoben auf 08:10, Sir.",next:["list"]},
-rep:{u:"Mach das jeden Werktag.",tools:["erinnerung_setzen(wiederholung='werktags')"],r:"Ab jetzt jeden Werktag um 08:00, Sir.",next:["list"]},
-list:{u:"Welche Erinnerungen habe ich?",tools:["erinnerungen_zeigen()"],r:"1) Werktags 08:00 – Standup\n(Keine weiteren offen.)",next:[]},
-wake:{u:"Fasse mir meine ungelesenen Mails zusammen.",tools:["wake_and_wait()  → Wake-on-LAN","mails_lesen(limit=5)"],
- note:"Ich habe den Gaming-PC gestartet, Sir.",r:"Du hast 3 ungelesene Mails: Rechnung (Hosting), Terminanfrage für Donnerstag, Newsletter. Die Terminanfrage wirkt am dringendsten.",next:["late"]},
-late:{u:"(30 Minuten später, PC läuft noch)",tools:["jarvis_watch → ntfy-Push"],note:"Push aufs Handy:",r:"Der Gaming-PC läuft seit 30 Minuten. Noch gebraucht, Sir, oder soll er aus?",next:["shut"]},
-shut:{u:"Fahr den PC runter.",tools:[],r:"Soll ich den Gaming-PC wirklich herunterfahren, Sir? Danach läuft nur noch das kleine Modell. Mit Ja bestätigen.",next:["yes"]},
-yes:{u:"Ja.",tools:["pc_ausschalten(bestätigt=true)"],r:"Der Gaming-PC fährt herunter, Sir.",next:[]},
-scan:{u:"Scanne mein Heimnetz auf offene Ports.",tools:[],r:"Portscan gegen 192.168.1.0/24 (nur eigenes Netz, Allowlist). Soll ich starten, Sir?",next:["scanyes"]},
-scanyes:{u:"Ja, starten.",tools:["portscan(ziel='192.168.1.0/24')"],r:"Fertig: 4 Geräte, offen: Router 80/443, NAS 445, Drucker 9100. Nichts Unerwartetes.",next:[]},
-guard:{u:"Starte die Datensicherung.",tools:[],note:"Ohne Wächter würde ein Modell hier einfach antworten:",r:"«Die Sicherung wurde gestartet.»  ← erfunden, kein Werkzeug wurde aufgerufen",next:["guard2"]},
-guard2:{u:"Und mit dem Wahrheits-Wächter?",tools:["_find_claim_violation → Behauptung ohne Werkzeugaufruf"],fix:1,r:"Korrektur: Ich habe die Sicherung nicht gestartet, Sir. Dafür wurde kein Werkzeug aufgerufen.",next:[]}
+const SC={
+rem:{t:"Erinnerung setzen",m:"Tool-Calling",u:"Erinnere mich morgen um 8 Uhr ans Standup.",pc:1,tools:["erinnerung_setzen(zeit='morgen 08:00', text='Standup')"],
+ r:"Erledigt, Sir. Erinnerung für morgen 08:00 gespeichert: «Standup». Ich schicke dir zur Zeit eine Push-Nachricht aufs Handy.",next:["snooze","rep"],
+ how:{p:"Ein Chatbot kann Erinnerungen nur versprechen. JARVIS legt sie wirklich ab.",s:"Das Modell wählt ein Werkzeug (Tool-Calling), der Agent führt es aus und gibt das Ergebnis zurück. Die Erinnerung liegt in einer Datenbank, eine Wache prüft jede Minute und schickt zur Zeit einen Push (ntfy).",c:"agent loop:\n  model → tool_call(erinnerung_setzen)\n  tool  → speichert in DB\n  watch → jede Minute fällig? → ntfy-Push",t:["Python","Ollama Tool-Calling","SQLite","ntfy"]}},
+snooze:{t:"Verschieben",u:"Verschieb das um 10 Minuten.",pc:1,tools:["erinnerung_snooze(minuten=10)"],r:"Verschoben auf 08:10, Sir.",next:["list"],
+ how:{p:"Verschieben ist ein eigenes Werkzeug.",s:"Ursprünglich legte das Modell dafür eine neue Erinnerung an und die alte blieb bestehen. Die Prompt-Regel ‹snooze, nicht neu setzen› und ein eigenes Werkzeug haben das behoben.",c:"erinnerung_snooze(minuten)\n→ ändert die bestehende,\n  behält die Wiederholung",t:["Prompt-Regel","Werkzeug-Design"]}},
+rep:{t:"Wiederkehrend",u:"Mach das jeden Werktag.",pc:1,tools:["erinnerung_setzen(wiederholung='werktags')"],r:"Ab jetzt jeden Werktag um 08:00, Sir.",next:["list"],
+ how:{p:"Wiederholungen: täglich, wöchentlich, werktags.",s:"Nach dem Auslösen berechnet die Wache den nächsten Termin neu. Getestet in der Regressions-Suite.",c:"nach Push:\n  nächster = berechne(wiederholung)",t:["Python","Tests"]}},
+list:{t:"Übersicht",u:"Welche Erinnerungen habe ich?",pc:1,tools:["erinnerungen_zeigen()"],r:"1) Werktags 08:00 – Standup\nSonst nichts offen.",next:[],how:{p:"Lesende Werkzeuge ändern nichts.",s:"Der Agent holt die Daten live aus der DB, statt zu raten.",c:"erinnerungen_zeigen() → Liste",t:["SQLite"]}},
+wake:{t:"PC wecken & ansagen",m:"Routing",u:"Fasse mir meine ungelesenen Mails zusammen.",pc:2,tools:["wake_and_wait()  →  Wake-on-LAN","mails_lesen(limit=5)"],
+ note:"Ich habe den Gaming-PC gestartet, Sir.",r:"Du hast 3 ungelesene Mails: Rechnung (Hosting), Terminanfrage für Donnerstag, Newsletter. Die Terminanfrage wirkt am dringendsten.",next:["late"],
+ how:{p:"Das kleine Modell auf dem Laptop reicht nicht für alles.",s:"Braucht eine Anfrage Werkzeuge oder grosse Rechenleistung, weckt der Router den Gaming-PC per Wake-on-LAN, wartet bis Ollama antwortet und sagt es dir offen. Der Status wird über den Ollama-Port geprüft, weil Windows Pings blockt.",c:"if not pc_online():\n  wake_and_wait()  # WoL-Pakete\nantwort = \"Ich habe den Gaming-PC\n  gestartet, Sir.\" + ergebnis",t:["Wake-on-LAN","FastAPI","Ollama"]}},
+late:{t:"PC läuft zu lange",u:"(30 Minuten später, PC läuft noch)",pc:2,tools:["jarvis_watch → ntfy"],note:"Push aufs Handy:",r:"Der Gaming-PC läuft seit 30 Minuten. Noch gebraucht, Sir, oder soll er aus?",next:["shut"],
+ how:{p:"Strom sparen, ohne zu vergessen.",s:"Die Wache meldet nach 15, 30 und 60 Minuten, danach stündlich. So läuft die GPU nicht tagelang unbemerkt.",c:"schwellen = [15, 30, 60]\ndanach: jede volle Stunde",t:["systemd","ntfy"]}},
+shut:{t:"Herunterfahren",m:"Sicherheit",u:"Fahr den PC runter.",pc:2,tools:[],r:"Soll ich den Gaming-PC wirklich herunterfahren, Sir? Danach läuft nur noch das kleine Modell. Mit Ja bestätigen.",next:["yes"],
+ how:{p:"Riskante Aktionen laufen NIE allein über das Modell.",s:"Die Rückfrage ist fest verdrahtet (regulärer Ausdruck vor dem Modell). Ein echter Fehler: das nackte «Ausschalten» wurde zunächst vom Modell verschluckt und nichts passierte. Behoben mit einem zusätzlichen Muster und Live-Test.",c:"SHUTDOWN_BARE_RE = re.compile(\n r\"^\\s*(?:ja\\s*,?\\s*)?(?:bitte\\s+)?\"\n r\"(?:ausschalten|herunterfahren)\\.?\")\nPENDING[session] = pc_ausschalten",t:["Regex","Bestätigung","Live-Test"]}},
+yes:{t:"Bestätigen",u:"Ja.",pc:0,tools:["pc_ausschalten(bestätigt=true)"],r:"Der Gaming-PC fährt herunter, Sir.",next:[],how:{p:"Erst nach dem Ja wird gehandelt.",s:"Die gespeicherte Aktion wird ausgeführt und der Status danach geprüft.",c:"run_pending() → shutdown",t:["Python"]}},
+scan:{t:"Portscan im Heimnetz",m:"Security-Lab",u:"Scanne mein Heimnetz auf offene Ports.",pc:2,tools:[],r:"Portscan gegen 192.168.1.0/24 (nur eigenes Netz, Allowlist). Soll ich starten, Sir?",next:["scanyes"],
+ how:{p:"Ein kleines Security-Lab im Chat.",s:"nmap läuft nur gegen private Netze (Allowlist) und nur nach Bestätigung. Ursprünglich konnte das Modell die Bestätigung erraten, ohne dass eine Aktion gespeichert war. Jetzt ist sie fest verdrahtet.",c:"if ziel not in ALLOWLIST: abbrechen\nPENDING[session] = portscan(ziel)",t:["nmap","Allowlist","Bestätigung"]}},
+scanyes:{t:"Scan starten",u:"Ja, starten.",pc:2,tools:["portscan(ziel='192.168.1.0/24')"],r:"Fertig: 4 Geräte. Offen: Router 80/443, NAS 445, Drucker 9100. Nichts Unerwartetes.",next:[],how:{p:"Ergebnis kommt vom Werkzeug.",s:"Das Modell fasst nur zusammen, was nmap geliefert hat.",c:"nmap -sT -p- ziel",t:["nmap"]}},
+guard:{t:"Der Wahrheits-Wächter",m:"Kernidee",u:"Starte die Datensicherung.",pc:2,tools:[],note:"Ohne Wächter antwortet ein Modell oft einfach so:",r:"«Die Sicherung wurde gestartet.»   ← erfunden, kein Werkzeug lief",next:["guard2"],
+ how:{p:"Das häufigste Problem lokaler Modelle: Sie melden Erfolg, ohne etwas getan zu haben.",s:"Wir haben dafür keinen schöneren Prompt gebaut, sondern eine Prüfung: Jede Antwort wird gegen die echten Werkzeugaufrufe abgeglichen.",c:"behauptet(‹erledigt›) UND\nkein passendes tool_call\n→ Verstoss",t:["Muster-Erkennung","Python"]}},
+guard2:{t:"Mit Wächter",u:"Und mit dem Wahrheits-Wächter?",pc:2,tools:["_find_claim_violation → Behauptung ohne Werkzeugaufruf"],fix:1,r:"Korrektur: Ich habe die Sicherung nicht gestartet, Sir. Dafür wurde kein Werkzeug aufgerufen.",next:[],
+ how:{p:"Der Wächter korrigiert die Antwort.",s:"Vorsichtige Formulierungen (‹würde›, ‹wenn›) sind erlaubt, echte Erfolgsmeldungen ohne Beleg nicht. Das haben wir an echten Fehlern nachgeschärft.",c:"_CLAIM_RULES + _HEDGE_RE\n→ korrigierte Antwort",t:["Regeln","Tests"]}}
 };
-const chat=document.getElementById("chat"),chips=document.getElementById("chips");
-const add=(c,t)=>{const d=document.createElement("div");d.className=c;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d};
+const ORDER=["rem","wake","shut","scan","guard"];
+const $=id=>document.getElementById(id),chat=$("chat"),chips=$("chips"),how=$("how"),list=$("list");
+const add=(c,t)=>{const d=document.createElement("div");d.className=c;d.textContent=t;chat.appendChild(d);chat.scrollTop=1e9;return d};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function type(el,t){for(const ch of t){el.textContent+=ch;chat.scrollTop=chat.scrollHeight;await sleep(12)}}
-function render(id){chips.innerHTML='<p>Frag JARVIS etwas (vorgefertigte Szenarien):</p>';
- (S[id].next||[]).forEach(n=>{const b=document.createElement("button");b.textContent=S[n].u;b.onclick=()=>play(n);chips.appendChild(b)});
- if(!(S[id].next||[]).length){const b=document.createElement("button");b.textContent="↺ Von vorn";b.onclick=()=>{chat.innerHTML="";render("start")};chips.appendChild(b)}}
-async function play(id){const n=S[id];chips.innerHTML="";add("m u",n.u);await sleep(350);
- for(const t of n.tools){add("tool","🔧 "+t);await sleep(450)}
- if(n.note){add("note",n.note);await sleep(350)}
- const d=add("m j"+(n.fix?" fix":""),"");await type(d,n.r);render(id)}
-render("start");add("note","Szenarien-Demo: Antworten sind vorgefertigt, so verhält sich JARVIS im Echtbetrieb. Wähle unten eine Frage.");
+function pc(s){const d=$("pcdot"),t=$("pctxt");d.className="dot "+(s==1?"off":s==2?"on":"wait");t.textContent=s==2?"AN":s==0?"AUS":"AUS"}
+function showHow(n){const h=n.how;how.innerHTML='<h3>So funktioniert\'s</h3><p>'+h.p+'</p><h4>Wie wir es gelöst haben</h4><p>'+h.s+'</p><h4>Im Code</h4><pre></pre><h4>Basiert auf</h4><div class="tags"></div>';
+ how.querySelector("pre").textContent=h.c;const tg=how.querySelector(".tags");h.t.forEach(x=>{const s=document.createElement("span");s.textContent=x;tg.appendChild(s)})}
+function side(cur){list.innerHTML="";ORDER.forEach(k=>{const d=document.createElement("div");d.className="sc"+(cur===k?" cur":"");d.innerHTML=SC[k].t+"<small>"+(SC[k].m||"")+"</small>";d.onclick=()=>{chat.innerHTML="";play(k)};list.appendChild(d)})}
+function chipsFor(id){chips.innerHTML='<p class="hud">Nächste Frage</p>';const nx=SC[id].next;nx.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>play(k);chips.appendChild(b)});if(!nx.length){const b=document.createElement("button");b.textContent="↺ Anderes Szenario wählen";b.onclick=()=>{chat.innerHTML="";start()};chips.appendChild(b)}}
+async function play(id){const n=SC[id];chips.innerHTML="";if(ORDER.includes(id))side(id);add("m u",n.u);showHow(n);await sleep(350);
+ if(id==="wake"){pc(0);}
+ for(const t of n.tools){add("tool","▸ "+t);await sleep(450)}
+ if(id==="wake"){$("pcdot").className="dot wait";await sleep(700)}
+ pc(n.pc);if(n.note){add("note",n.note);await sleep(300)}
+ const d=add("m j"+(n.fix?" fix":""),"");for(const ch of n.r){d.textContent+=ch;chat.scrollTop=1e9;await sleep(10)}chipsFor(id)}
+function start(){side(null);pc(1);chips.innerHTML='<p class="hud">Wähle ein Szenario links oder hier</p>';ORDER.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>{chat.innerHTML="";play(k)};chips.appendChild(b)});
+ how.innerHTML='<h3>So funktioniert\'s</h3><p>JARVIS läuft komplett lokal: ein Laptop als Router mit kleinem Modell, ein Gaming-PC als grosser Rechenknoten bei Bedarf.</p><p>Wähle ein Szenario. Rechts siehst du, wie wir es gelöst haben und worauf es basiert.</p><p style="color:var(--dim)">Antworten sind vorgefertigt (kein Server), so verhält sich JARVIS im Echtbetrieb.</p>'}
+start();
 </script></body></html>
