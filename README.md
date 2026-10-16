@@ -8,6 +8,10 @@
 
 Ein persönlicher Sprach- und Chat-Assistent, der vollständig lokal läuft — auf einem 24/7-Laptop plus einem Gaming-PC als zuschaltbarem Rechenknoten. Keine Cloud-Abhängigkeit für die Kernfunktionen, Zugriff nur über das eigene Netz (Tailscale).
 
+![JARVIS Oberfläche / UI](docs/screenshot-ui.png)
+
+*Echte JARVIS-Oberfläche (Startbildschirm, Beispiel-Chats). / Real JARVIS UI (home screen, sample chats).*
+
 ### Live-Demo ausprobieren
 
 Öffne [`demo/index.html`](demo/index.html) im Browser (kein Server nötig). Du kannst JARVIS vorgefertigte Fragen stellen und den Verzweigungen folgen: Erinnerung setzen und verschieben, PC wecken mit Ansage, Herunterfahren mit Bestätigung, Portscan mit Allowlist und der Wahrheits-Wächter, der eine erfundene Erfolgsmeldung korrigiert.
