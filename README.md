@@ -8,6 +8,10 @@
 
 Ein persönlicher Sprach- und Chat-Assistent, der vollständig lokal läuft — auf einem 24/7-Laptop plus einem Gaming-PC als zuschaltbarem Rechenknoten. Keine Cloud-Abhängigkeit für die Kernfunktionen, Zugriff nur über das eigene Netz (Tailscale).
 
+### Live-Demo ausprobieren
+
+Öffne [`demo/index.html`](demo/index.html) im Browser (kein Server nötig). Du kannst JARVIS vorgefertigte Fragen stellen und den Verzweigungen folgen: Erinnerung setzen und verschieben, PC wecken mit Ansage, Herunterfahren mit Bestätigung, Portscan mit Allowlist und der Wahrheits-Wächter, der eine erfundene Erfolgsmeldung korrigiert.
+
 ### Warum dieses Projekt?
 
 Ich wollte einen Assistenten, dem ich meine Daten (Kalender, Mail, Notizen) anvertrauen kann, ohne sie einer Cloud zu geben — und der trotzdem mit Werkzeugen wirklich etwas erledigt, statt nur zu plaudern. Gebaut habe ich ihn als Informatik-Lernender in der Freizeit auf Hardware, die ich schon hatte: ein Laptop, der ohnehin läuft, und mein Gaming-PC.
@@ -74,6 +78,10 @@ Geräte-/netzspezifische Werte (IPs, MAC, Mail) sind im Code Platzhalter und geh
 ## English
 
 A personal voice and chat assistant that runs fully locally — on an always-on laptop plus a gaming PC as an on-demand compute node. No cloud dependency for the core features; access only over the private network (Tailscale).
+
+### Try the live demo
+
+Open [`demo/index.html`](demo/index.html) in a browser (no server needed). Ask JARVIS pre-scripted questions and follow the branches: set and snooze a reminder, wake the PC with an announcement, shutdown with confirmation, a port scan with allowlist, and the truth guard correcting an invented success message.
 
 ### Why this project?
 
