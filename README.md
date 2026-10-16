@@ -8,6 +8,16 @@
 
 Ein persönlicher Sprach- und Chat-Assistent, der vollständig lokal läuft — auf einem 24/7-Laptop plus einem Gaming-PC als zuschaltbarem Rechenknoten. Keine Cloud-Abhängigkeit für die Kernfunktionen, Zugriff nur über das eigene Netz (Tailscale).
 
+### Warum dieses Projekt?
+
+Ich wollte einen Assistenten, dem ich meine Daten (Kalender, Mail, Notizen) anvertrauen kann, ohne sie einer Cloud zu geben — und der trotzdem mit Werkzeugen wirklich etwas erledigt, statt nur zu plaudern. Gebaut habe ich ihn als Informatik-Lernender in der Freizeit auf Hardware, die ich schon hatte: ein Laptop, der ohnehin läuft, und mein Gaming-PC.
+
+**Was dieses Repo dir bietet:**
+- ein vollständiges, lauffähig gedachtes Beispiel für **Tool-Calling mit lokalen LLMs** (Agent-Schleife, Werkzeug-Module, Bestätigungen vor riskanten Aktionen)
+- ein **Muster gegen erfundene Erfolgsmeldungen** von Modellen (Wahrheits-Wächter), das sich auf eigene Agenten übertragen lässt
+- einen praxiserprobten **Strom-sparenden Betrieb** mit Wake-on-LAN, Auto-Shutdown und Erinnerung, wenn der PC zu lange läuft
+- reale **Fehlerbilder und ihre Fixes** (siehe unten), nicht nur die Schönwetter-Version
+
 ### Grundidee: kleines Modell entscheidet, grosses rechnet nur bei Bedarf
 
 ```
@@ -47,6 +57,14 @@ systemd/   # Dienst-Definitionen
 docs/      # Architektur
 ```
 
+### Was ich dabei gelernt habe
+
+- **Modelle behaupten gern, etwas getan zu haben**, ohne das Werkzeug aufzurufen. Gegenmittel: kritische Befehle (z. B. PC ausschalten) laufen fest verdrahtet vor dem Modell, und der Wahrheits-Wächter prüft jede Erfolgsmeldung gegen die tatsächlichen Werkzeugaufrufe.
+- **Ein Ping ist kein Lebenszeichen** — Windows blockt ICMP. Der PC-Status wird deshalb über den Ollama-Port geprüft.
+- **Kleine Modelle brauchen Leitplanken:** ohne Werkzeuge rät das 3B-Modell. Deshalb weckt JARVIS den PC, sobald eine Anfrage Werkzeuge braucht, und sagt es dir offen.
+- **Fehler sichtbar machen:** statt einer leeren Antwort meldet JARVIS, wenn das grosse Modell ausfällt.
+- Jede Änderung wird live getestet und mit Regressionstests abgesichert.
+
 ### Konfiguration
 
 Geräte-/netzspezifische Werte (IPs, MAC, Mail) sind im Code Platzhalter und gehören in Umgebungsvariablen, Vorlage: [`.env.example`](.env.example).
@@ -56,6 +74,16 @@ Geräte-/netzspezifische Werte (IPs, MAC, Mail) sind im Code Platzhalter und geh
 ## English
 
 A personal voice and chat assistant that runs fully locally — on an always-on laptop plus a gaming PC as an on-demand compute node. No cloud dependency for the core features; access only over the private network (Tailscale).
+
+### Why this project?
+
+I wanted an assistant I can trust with my data (calendar, mail, notes) without handing it to a cloud — one that actually gets things done with tools instead of just chatting. I built it as an IT apprentice in my spare time on hardware I already had: a laptop that runs anyway, and my gaming PC.
+
+**What this repo offers you:**
+- a complete example of **tool calling with local LLMs** (agent loop, tool modules, confirmation before risky actions)
+- a **pattern against invented success reports** from models (truth guard) that you can transfer to your own agents
+- a battle-tested **power-saving setup** with Wake-on-LAN, auto-shutdown, and a reminder when the PC runs too long
+- real **failure modes and their fixes** (below), not just the happy path
 
 ### Core idea: the small model decides, the big one only runs when needed
 
@@ -73,6 +101,14 @@ The small model on the power-efficient laptop answers simple requests itself. Wh
 ### Stack
 
 Python (FastAPI, async), local LLMs via Ollama, Whisper and Piper, systemd services, Docker, Tailscale, Wake-on-LAN, ntfy.
+
+### What I learned
+
+- **Models like to claim they did something** without calling the tool. Countermeasure: critical commands (e.g. shutting down the PC) are hard-wired before the model, and the truth guard checks every success claim against the actual tool calls.
+- **A ping is not a sign of life** — Windows blocks ICMP, so PC status is checked via the Ollama port.
+- **Small models need guardrails:** without tools the 3B model guesses. JARVIS therefore wakes the PC when a request needs tools, and tells you so.
+- **Make failures visible:** instead of an empty answer, JARVIS reports when the large model fails.
+- Every change is tested live and backed by regression tests.
 
 ### Configuration
 
