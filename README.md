@@ -21,7 +21,7 @@ Ich bin Informatiker-Lernender im 2. Lehrjahr (EFZ, Fachrichtung Plattformentwic
 | **Modelle** | granite4:3b auf dem Laptop, gemma4:26b auf dem Gaming-PC, beide lokal über Ollama |
 | **Zeitraum** | seit Juli 2026, laufend im Einsatz |
 | **Zugriff** | nur über mein privates Netz (Tailscale), auf Handy, Laptop und PC gleich |
-| **Entwickelt mit** | enger Unterstützung von Claude (Anthropic), siehe [Wie das Projekt entstanden ist](#wie-das-projekt-entstanden-ist) |
+| **Rollen** | Konzept, Architektur, Einrichtung, Tests und Entscheidungen: ich. Programmier-Partner: Claude (Anthropic), siehe [Wie das Projekt entstanden ist](#wie-das-projekt-entstanden-ist) |
 
 ## Ziel
 
@@ -113,9 +113,23 @@ Zu jedem Schritt erklärt ein Panel, welche Lösung dahintersteckt und wo sie im
 
 ## Wie das Projekt entstanden ist
 
-Ich habe JARVIS in enger Zusammenarbeit mit **Claude** (Anthropic) gebaut, vor allem mit Claude Code. Claude hat mit mir geplant, viel Code geschrieben, Fehler gesucht und Tests gebaut. Die Commits, an denen Claude mitgearbeitet hat, sind im Git-Verlauf als Co-Autor gekennzeichnet.
+JARVIS ist mein Projekt: Idee, Ziel und alle wichtigen Entscheidungen kommen von mir. Beim Programmieren hatte ich einen starken Partner, **Claude** (Anthropic), vor allem Claude Code. Gearbeitet habe ich wie ein Projektleiter mit einem Entwickler im Team: Ich sage, was gebaut wird und warum, prüfe das Ergebnis und entscheide, ob es so bleibt.
 
-Meine Rolle: Idee und Ziel, Entscheidungen (was gebaut wird, was nicht), Hardware und Netzwerk einrichten, alles am echten System testen und Fehler aus dem Alltag zurückmelden. Gelernt habe ich dabei vor allem, wie man ein grösseres System Schritt für Schritt aufbaut, prüft und sauber dokumentiert.
+**Mein Teil**
+- **Idee und Konzept:** ein Assistent, der lokal läuft, wirklich Dinge erledigt und meine Daten nicht in eine Cloud schickt.
+- **Architektur:** Laptop als stromsparender Dauer-Server, Gaming-PC nur bei Bedarf per Wake-on-LAN, Zugriff nur über mein privates Netz (Tailscale).
+- **Hardware und Netzwerk:** Server, Gaming-PC mit Ollama, Wake-on-LAN und Tailscale auf allen meinen Geräten eingerichtet.
+- **Regeln und Grenzen:** Ich lege fest, was JARVIS darf. Zum Beispiel bleibt mein Schul-Mailkonto draussen, der Privat-Chat speichert nichts, das Sicherheitslabor läuft nur zusammen mit mir, und die Filterregeln der Bildgenerierung bearbeite nur ich selbst.
+- **Testen im Alltag:** Ich benutze JARVIS jeden Tag auf Handy, Laptop und PC, finde Fehler, beschreibe sie genau und prüfe die Lösung am echten System.
+- **Freigabe:** Nichts geht ohne mein Okay live oder an die Öffentlichkeit.
+
+**Claudes Teil**
+- Den grössten Teil des Codes schreiben, Fehler suchen und Tests bauen.
+- Lösungswege vorschlagen und erklären, damit ich verstehe, wie alles zusammenhängt, und selbst entscheiden kann.
+
+Die Commits, an denen Claude mitgearbeitet hat, sind im Git-Verlauf als Co-Autor gekennzeichnet. Ich finde es wichtig, das offen zu zeigen.
+
+**Was ich dabei gelernt habe:** einen Linux-Server betreiben (systemd, Docker, nginx), Netzwerkthemen wie Wake-on-LAN und VPN, wie Sprachmodelle Werkzeuge aufrufen und wo man ihnen nicht trauen darf, und wie man ein grösseres Projekt plant, Anforderungen klar formuliert, testet und dokumentiert. Dazu kommt etwas, das in der IT immer wichtiger wird: mit KI so zusammenarbeiten, dass am Ende ein System entsteht, das man selbst versteht und verantwortet.
 
 ## Herausforderungen und was ich gelernt habe
 
@@ -153,8 +167,10 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 
 ## Wie es weitergeht
 
+- **Smart Home:** JARVIS soll das Licht in meinem Zimmer steuern, später möglichst viel mehr. Dafür kommt Home Assistant auf eigene Hardware (z. B. einen Raspberry Pi), getrennt vom JARVIS-Server.
 - **Strengere Sperre für fremde Inhalte:** Nachdem JARVIS eine Mail oder Webseite gelesen hat, darf er in derselben Runde keine Aktionen mehr ausführen.
 - **Messbare Qualität:** feste Testfragen pro Modell, Ergebnisse als Tabelle hier in der Doku.
+- **Sprache:** ein Aktivierungswort („Wake-Word“) und eine bessere deutsche Stimme testen.
 - ~~Kleine Werkzeuge wie QR-Codes, Zufallszahlen und Passwörter, Einheiten umrechnen~~ erledigt, dazu Spiele und Monitoring.
 
 ## Projektstruktur
@@ -197,7 +213,8 @@ I am an IT apprentice in my second year (platform development) in Switzerland. J
 - **Features:** over 45 tools, including reminders, calendar, mail, notes, shopping list, web search, documents, a knowledge base, Office files, image generation, a code sandbox, PC control, a home-network security lab, a morning brief and push alerts. Small helpers (exact calculator, unit and currency conversion, real randomness, passwords, QR codes incl. WLAN) and four games run in code and answer short commands instantly without a model. A monitoring page keeps 14 days of server history.
 - **Stack:** Python (FastAPI), Ollama, Whisper, Piper, ComfyUI, Debian, systemd, Docker, SQLite, Tailscale, ntfy.
 - **Demo:** open [`demo/index.html`](demo/index.html) to click through possible conversations (scripted, no live model), also online at https://a555ferrari.github.io/jarvis-showcase/demo/. The video and screenshots above are real.
-- **Built with Claude:** I developed JARVIS in close collaboration with Claude (Anthropic), mainly Claude Code, which planned with me, wrote much of the code, debugged and built tests. Idea, decisions, setup and real-world testing are mine.
+- **How it was built:** JARVIS is my project. The idea, architecture, hardware and network setup, rules and limits, daily testing and every release decision are mine. My coding partner was Claude (Anthropic), mainly Claude Code, which wrote most of the code, debugged and built tests, and explained its solutions so I understand and own the system. Commits co-written by Claude are marked in the git history.
+- **Next:** smart home control for my room (Home Assistant on separate hardware), a stricter lock after reading untrusted content, measurable model quality, wake word and a better German voice.
 - **Questions?** Open an [issue](../../issues).
 
 ## Lizenz / License
