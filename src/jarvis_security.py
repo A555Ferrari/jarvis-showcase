@@ -1,9 +1,8 @@
 """Security-Lab-Modus (Grundgeruest, King 05./06.10.): Lesen/Scannen NUR gegen Ziele auf einer
 von King gepflegten Allowlist (eigene Hosts im eigenen Netz). Kein Internet-Ziel, kein
 "offensiv", keine Exploit-Ausfuehrung -- nur Erkennung (Ping, Portscan). Jede Aktion wird
-geloggt. Noch NICHT an die Agent-Werkzeuge/Chat angebunden (siehe OFFENE_PUNKTE.md) -- dieses
-Modul ist das Grundgeruest: Allowlist-Pruefung, Ping, Portscan, Log. Die Chat-Anbindung mit
-Ja/Nein-Bestaetigung (wie bei kalender_loeschen) ist ein eigener, spaeterer Schritt.
+geloggt. Angebunden an Agent und Chat: Portscan nur nach Ja/Nein-Bestaetigung (wie bei kalender_loeschen). Dieses
+Modul liefert Allowlist-Pruefung, Ping, Portscan und Log.
 """
 import ipaddress
 import json

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 JARVIS Routing Proxy v1
-Port 11435 — routes between qwen2.5:3b (Laptop) and qwen2.5:14b (Gaming-PC)
+Port 11435 — routes between a small model (Laptop, SMALL_MODEL) and a large model (Gaming-PC, LARGE_MODEL)
 """
 
 import asyncio

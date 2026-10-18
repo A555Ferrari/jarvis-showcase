@@ -39,7 +39,7 @@ das Werkzeug wirklich aufzurufen, und ein folgendes "Ja" liefe ins Leere.
 
 ## 3. Wahrheits-Waechter
 
-Siehe [`../truth_guard.py`](../truth_guard.py) mit lauffaehiger Demo. Kurz:
+Siehe [`../src/truth_guard.py`](../src/truth_guard.py) mit lauffaehiger Demo. Kurz:
 nach jeder Modell-Antwort wird geprueft, ob eine als erledigt formulierte
 Aktion auch wirklich durch einen Werkzeugaufruf in derselben Runde belegt ist.
 Fehlt der Beleg, wird die Behauptung korrigiert oder der Satz entfernt.
