@@ -170,6 +170,7 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 - **Smart Home:** JARVIS soll das Licht in meinem Zimmer steuern, später möglichst viel mehr. Dafür kommt Home Assistant auf eigene Hardware (z. B. einen Raspberry Pi), getrennt vom JARVIS-Server.
 - **Strengere Sperre für fremde Inhalte:** Nachdem JARVIS eine Mail oder Webseite gelesen hat, darf er in derselben Runde keine Aktionen mehr ausführen.
 - **Messbare Qualität:** feste Testfragen pro Modell, Ergebnisse als Tabelle hier in der Doku.
+- **Pi-hole:** Werbung und Tracker im ganzen Heimnetz blockieren.
 - **Sprache:** ein Aktivierungswort („Wake-Word“) und eine bessere deutsche Stimme testen.
 - ~~Kleine Werkzeuge wie QR-Codes, Zufallszahlen und Passwörter, Einheiten umrechnen~~ erledigt, dazu Spiele und Monitoring.
 
@@ -193,7 +194,7 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 
 ## Ähnliche Projekte
 
-JARVIS ist ein beliebter Name. Diese Projekte habe ich mir angesehen und Ideen für die Doku übernommen (nur Ideen, kein Code): [isair/jarvis](https://github.com/isair/jarvis), [open-jarvis/OpenJarvis](https://github.com/open-jarvis/OpenJarvis), [ethanplusai/jarvis](https://github.com/ethanplusai/jarvis), [Priler/jarvis](https://github.com/Priler/jarvis), [sukeesh/Jarvis](https://github.com/sukeesh/Jarvis).
+Die Idee kommt von J.A.R.V.I.S. aus den Iron-Man-Filmen: ein Assistent, mit dem man einfach redet und der dann Dinge erledigt. Erst später habe ich mir andere Projekte mit demselben Namen angesehen und daraus Ideen für die Doku übernommen (nur Ideen, kein Code): [isair/jarvis](https://github.com/isair/jarvis), [open-jarvis/OpenJarvis](https://github.com/open-jarvis/OpenJarvis), [ethanplusai/jarvis](https://github.com/ethanplusai/jarvis), [Priler/jarvis](https://github.com/Priler/jarvis), [sukeesh/Jarvis](https://github.com/sukeesh/Jarvis).
 
 Was meines anders macht: die Verbindung zum Alltag (Kalender, Mail, Erinnerungen), das stromsparende Zusammenspiel von Laptop und Gaming-PC und der Wahrheits-Wächter.
 
@@ -214,7 +215,7 @@ I am an IT apprentice in my second year (platform development) in Switzerland. J
 - **Stack:** Python (FastAPI), Ollama, Whisper, Piper, ComfyUI, Debian, systemd, Docker, SQLite, Tailscale, ntfy.
 - **Demo:** open [`demo/index.html`](demo/index.html) to click through possible conversations (scripted, no live model), also online at https://a555ferrari.github.io/jarvis-showcase/demo/. The video and screenshots above are real.
 - **How it was built:** JARVIS is my project. The idea, architecture, hardware and network setup, rules and limits, daily testing and every release decision are mine. My coding partner was Claude (Anthropic), mainly Claude Code, which wrote most of the code, debugged and built tests, and explained its solutions so I understand and own the system. Commits co-written by Claude are marked in the git history.
-- **Next:** smart home control for my room (Home Assistant on separate hardware), a stricter lock after reading untrusted content, measurable model quality, wake word and a better German voice.
+- **Next:** smart home control for my room (Home Assistant on separate hardware), Pi-hole to block ads across my home network, a stricter lock after reading untrusted content, measurable model quality, wake word and a better German voice.
 - **Questions?** Open an [issue](../../issues).
 
 ## Lizenz / License
