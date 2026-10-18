@@ -36,6 +36,9 @@ import jarvis_image as ji
 import jarvis_web as jw
 import threading
 import jarvis_memory as jm
+import jarvis_tools_small as jts      # Rechnen, Zufall, Passwort, QR, Umrechnen (18.10.)
+import jarvis_games as jgm            # Spiele (18.10.)
+import jarvis_metrics as jmx          # Monitoring mit Verlauf (18.10.)
 threading.Thread(target=jm.loop, daemon=True).start()
 
 
@@ -445,6 +448,7 @@ def history_load(session: str, n: int = HISTORY_N, max_len: int = HISTORY_MAX_LE
 def history_save(session: str, user_text: str, answer: str, model: str):
     if not session or not user_text or not answer:
         return
+    user_text, answer = jts.redact(user_text), jts.redact(answer)      # erzeugte Passwoerter/PINs nie im Verlauf
     try:
         con = _db()
         try:
@@ -1494,6 +1498,7 @@ You have tools. Use them like a competent assistant:
 - The user's permanently saved documents (knowledge base: scripts, manuals, his own notes/PDFs; words like Skript, Unterlagen, Wissensbasis) -> wissen_suchen, and answer ONLY from the returned excerpts, naming file and page; if they do not answer it, say so. A document attached in THIS chat that he wants kept for good -> wissen_hinzufuegen (runs in the background; never say it is searchable yet). List: wissen_liste. Delete: wissen_loeschen (only asks; never say it is done).
 - "Remember/merk dir ..." -> notiz_speichern. Questions about what he told you to remember -> notizen_lesen.
 - Exact calculations beyond simple arithmetic, statistics, IP/subnet maths, data from uploaded tables -> write a short Python program and run it with python_ausfuehren; never compute big numbers by hand.
+- Any calculation, even simple -> rechnen (exact calculator; give its result exactly). Unit or currency conversion -> umrechnen. Random numbers, dice, coin toss, random picks -> zufall (never invent a random result). Passwords/PINs -> passwort (shown to the user automatically and not stored; never write a password yourself). QR codes for links, text or WLAN -> qr_code. Games (Zahlenraten, Galgenmaennchen, Tic-Tac-Toe, Schere-Stein-Papier) or 'mir ist langweilig' -> spiel_starten; the game code then answers the moves by itself. Server history (temperature, power cuts, response times, PC on-time, restarts) -> monitoring.
 - General knowledge, explanations, code, maths, advice, small talk: answer directly, no tool.
 - If a request is unclear, ask ONE short question instead of guessing. If a tool returns nothing or fails, say so plainly. Never invent facts, numbers, sources, error messages or results.
 - Never claim that you saved, created, changed, sent or looked up something unless you actually called the tool for it in this turn.
@@ -1520,6 +1525,7 @@ FACTS ABOUT YOURSELF (use only these when you describe yourself; anything not li
 - Shopping list (einkauf_hinzufuegen/zeigen/entfernen), short personal notes (notiz_speichern/notizen_lesen), standing behaviour preferences he can set (anweisung_speichern/zeigen/entfernen, e.g. "duz mich ab jetzt").
 - His permanent knowledge base of documents/scripts/notes: wissen_suchen (search it), wissen_hinzufuegen (save a chat attachment into it for good), wissen_liste, wissen_loeschen.
 - Research mode (recherche_start/recherche_status): a longer multi-step background research job, delivers a document and a push when done instead of blocking the chat.
+- Small tools: exact calculator (rechnen), unit and currency conversion with live ECB rates (umrechnen), real randomness (zufall), password/PIN generator whose results are not stored (passwort), QR codes incl. WLAN login (qr_code), four games (spiel_starten), and server monitoring with a 14-day history (monitoring; also a monitoring page in the app).
 - Home-network tools (netz_ping, portscan via nmap, service detection only, no exploits): only his own private network or targets he explicitly authorizes (e.g. a named bug-bounty scope) - never the open internet on your own initiative. Portscan always asks for a clear yes first.
 - You currently have NO access to other mail accounts, smart home, banking, the user's computer files or the camera. Do not offer or promise these as if they existed; you may say they are planned.
 - Your knowledge ends before mid-2026; for anything current you use the search tool. You can make mistakes, especially with numbers and long documents - say so when unsure.
@@ -1714,6 +1720,11 @@ async def _summarize_part(part: str, fokus: str = "") -> str:
     r.raise_for_status()
     return str(r.json().get("message", {}).get("content", "")).strip()
 
+
+# Kurzbefehle fuer kleine Werkzeuge: kann jts.direct() sie nicht eindeutig lesen und der PC ist aus, wird er geweckt,
+# damit das grosse Modell das passende Werkzeug nimmt (sonst wuerde das 3b raten/rechnen).
+SMALLTOOL_RE = re.compile(r"\b(rechne|berechne|ausrechnen|qr|passw(?:ort|ö?rter|oerter)|kennwort|w(?:ü|ue)rf\w*|m(?:ü|ue)nz\w*|zufall\w*|"
+                          r"zuf(?:ä|ae)llig\w*|umrechn\w*|wechselkurs|wlan|wifi)\b", re.I)
 
 PENDING = {}                       # session (oder "_") -> {"action", "desc", "ts"}; wartet auf ein klares Ja
 PENDING_TTL = 120
@@ -2331,6 +2342,13 @@ def make_executor(raw: list, session: str, last: str):
             if not rows:
                 return {"text": "There are no saved notes."}
             return {"text": "Saved notes (newest first):\n" + "\n".join(f"- ({ts}) {t}" for ts, t in rows)}
+        if name in jts.NAMES:
+            print(f"[JARVIS] Agent-Kleinwerkzeug: {name}", flush=True)
+            return await asyncio.to_thread(jts.tool, name, args, _is_english(last))
+        if name == "spiel_starten":
+            return await asyncio.to_thread(jgm.tool, session, args, _is_english(last))
+        if name == "monitoring":
+            return {"text": await asyncio.to_thread(jmx.text, int(args.get("stunden") or 24), _is_english(last))}
         if name == "recherche_start":
             return _research_start(args.get("thema"))
         if name == "recherche_status":
@@ -2605,6 +2623,9 @@ Your tools (use them like a competent assistant):
 {extra}"""
 
 
+EPH_TOOL_NAMES = set(EPH_TOOL_NAMES) | set(jts.NAMES)        # zustandslose Kleinwerkzeuge auch im Privat-Chat
+
+
 async def eph_agent_path(raw: list, eid: str, last: str, stream: bool):
     execute0, docs, pf = make_executor(raw, "", last)
 
@@ -2766,6 +2787,26 @@ async def chat(request: Request):
         return reply(text + suffix, model, stream)
 
     if not task:
+        # Kleine Werkzeuge und Spiele: eindeutige Kurzbefehle direkt im Code beantworten, ohne Modell (auch bei PC aus).
+        # Eine offene Ja/Nein-Rueckfrage hat Vorrang.
+        _u0 = [m for m in raw if m.get("role") == "user"]
+        _l0 = strip_tags(str(_u0[-1].get("content", ""))) if _u0 else ""
+        _p0 = PENDING.get(session or "_")
+        _dr = None
+        if _l0 and not (_p0 and time.monotonic() - _p0["ts"] <= PENDING_TTL and (YES_RE.match(_l0) or NO_RE.match(_l0))):
+            try:
+                _dr = jgm.handle(session, _l0, _is_english(_l0)) if session else None
+                if _dr is None:
+                    _dr = jts.direct(_l0, _is_english(_l0))
+            except Exception as e:
+                print(f"[JARVIS] Direkt-Werkzeug FEHLER {e!r}", flush=True)
+                _dr = None
+        if _dr:
+            print(f"[JARVIS] Direkt ohne Modell: {_dr['kind']}", flush=True)
+            history_save(session, user_text, _dr.get("hist", _dr["text"]), "jarvis-tools")
+            return reply(_dr["text"] + _dr.get("suffix", ""), "jarvis-tools", stream)
+
+    if not task:
         _users = [m for m in raw if m.get("role") == "user"]
         _last = str(_users[-1].get("content", "")) if _users else ""
         if len(_last) < 80 and WAKE_RE.search(_last) and not SHUTDOWN_RE.search(_last):
@@ -2806,7 +2847,7 @@ async def chat(request: Request):
             _kind = jf.file_kind("mach " + _last) or _pf[2]       # "als Word Datei" wechselt den Typ
             _base = load_base(_pf[0])
             print(f"[JARVIS] Folgenachricht zu Datei {_pf[0]} -> {_kind}", flush=True)
-        if not pc_up and (_kind or _docs_recent or ESC_RE.search(_last) or BUILD_RE.search(_last) or _fuzzy_esc(_last)):
+        if not pc_up and (_kind or _docs_recent or ESC_RE.search(_last) or BUILD_RE.search(_last) or _fuzzy_esc(_last) or SMALLTOOL_RE.search(_last)):
             print("[JARVIS] Eskalation per Regel -> PC wecken", flush=True)
             if await wake_and_wait():
                 pc_up = True
@@ -3090,6 +3131,41 @@ async def tags():
             }
         }]
     })
+
+
+@app.get("/api/monitor")
+async def api_monitor(hours: float = 24):
+    """Monitoring-Daten fuer die Monitoring-Seite (voice_proxy /monitor/data)."""
+    rep = await asyncio.to_thread(jmx.report, hours)
+    ser = await asyncio.to_thread(jmx.series, hours)
+    return {"report": rep, "series": ser}
+
+
+class _ChatTiming:
+    """Reine ASGI-Middleware (kein BaseHTTPMiddleware: das wuerde die Kontextvariablen der Anfrage trennen):
+    misst bei /api/chat die Zeit bis zum ersten Antwortteil und schreibt sie ins Monitoring."""
+    def __init__(self, app_):
+        self.app = app_
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or scope.get("path") != "/api/chat":
+            return await self.app(scope, receive, send)
+        t0, st = time.monotonic(), {"status": 0, "logged": False}
+
+        async def _send(msg):
+            if msg.get("type") == "http.response.start":
+                st["status"] = int(msg.get("status") or 0)
+            elif msg.get("type") == "http.response.body" and not st["logged"] and (msg.get("body") or not msg.get("more_body")):
+                st["logged"] = True
+                try:
+                    await asyncio.to_thread(jmx.log_request, int((time.monotonic() - t0) * 1000), "/api/chat", st["status"])
+                except Exception:
+                    pass
+            await send(msg)
+        await self.app(scope, receive, _send)
+
+
+app.add_middleware(_ChatTiming)
 
 
 @app.get("/")

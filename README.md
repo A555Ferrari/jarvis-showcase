@@ -14,7 +14,7 @@ Ich bin Informatiker-Lernender im 2. Lehrjahr (EFZ, Fachrichtung Plattformentwic
 
 | | |
 |---|---|
-| **Was** | Persönlicher KI-Assistent mit Sprache und Text, rund 40 Werkzeugen und proaktiven Hinweisen |
+| **Was** | Persönlicher KI-Assistent mit Sprache und Text, über 45 Werkzeugen, kleinen Spielen und proaktiven Hinweisen |
 | **Hardware** | Ein alter Laptop als Server (läuft 24/7, nur CPU) und mein Gaming-PC als Rechenknoten bei Bedarf |
 | **Modelle** | granite4:3b auf dem Laptop, gemma4:26b auf dem Gaming-PC, beide lokal über Ollama |
 | **Zeitraum** | seit Juli 2026, laufend im Einsatz |
@@ -63,7 +63,9 @@ Ausserdem wollte ich lernen, wie man so ein System von Grund auf aufbaut: Server
 | **Alltag** | Erinnerungen und Timer (auch wiederkehrend, mit Schlummern), Einkaufsliste, Notizen, Kalender, Mails lesen, Kontakte |
 | **Wissen** | Websuche, Webseiten und Dokumente lesen und zusammenfassen, eigene Wissensbasis mit Suche, Gedächtnis über alte Gespräche, Recherche-Modus |
 | **Erstellen** | Word-, Excel-, PowerPoint- und PDF-Dateien erstellen und ändern, Bilder erzeugen, Python-Code in einer Sandbox ausführen |
-| **System** | Gaming-PC wecken und ausschalten, Systemstatus, Ping und Portscan im eigenen Netz (Security-Lab) |
+| **Kleine Helfer** | Exakter Rechner, Einheiten und Währungen umrechnen (Tageskurs der EZB), echter Zufall (Würfel, Münze, Zahl, Auswahl), sichere Passwörter und PINs, QR-Codes für Links, Text und WLAN |
+| **Spiele** | Zahlenraten, Galgenmännchen, Tic-Tac-Toe (leicht bis unschlagbar) und Schere-Stein-Papier, die Spiellogik läuft im Code |
+| **System** | Gaming-PC wecken und ausschalten, Systemstatus, Monitoring mit 14 Tagen Verlauf, Ping und Portscan im eigenen Netz (Security-Lab) |
 | **Von selbst** | Morgenbriefing (Wetter, Termine, Mails), Push-Meldungen bei Problemen mit Diensten, Speicher oder Festplatte, Hinweis vor frühen Terminen |
 
 ## So sieht es aus
@@ -73,6 +75,10 @@ Die zwei Screenshots sind echt. Oben der Startbildschirm, hier ein Privat-Chat m
 ![JARVIS Privat-Chat](docs/screenshot-chat.png)
 
 *Echter Privat-Chat. Dieser Chat wird nirgends gespeichert.*
+
+![JARVIS Monitoring](docs/screenshot-monitoring.png)
+
+*Monitoring-Seite: CPU, Temperatur, Speicher, Netzwerk, Antwortzeiten, Gaming-PC und Stromversorgung des Servers. Der Server ist ein Laptop, darum meldet JARVIS auch, wenn er auf Akku läuft (Stromausfall).*
 
 ### Interaktive Demo
 
@@ -115,6 +121,8 @@ Meine Rolle: Idee und Ziel, Entscheidungen (was gebaut wird, was nicht), Hardwar
 | Leere Antworten, wenn das grosse Modell ausfällt | Fehler werden sichtbar gemeldet statt verschluckt |
 | Gemma 4 lieferte Fehler und leere Antworten | Denk-Modus („Think“) abgeschaltet |
 | Fremde Texte (Mails, Webseiten) könnten JARVIS Befehle unterschieben | Fremder Text wird für das Modell als „nur Daten, keine Anweisung“ markiert |
+| Ein Sprachmodell rechnet ungenau und „würfelt“ nicht wirklich | Rechnen, Zufall, Passwörter und Spiele laufen im Code. Eindeutige Kurzbefehle wie „würfle“ oder „17*23“ beantwortet JARVIS sofort ohne Modell, auch wenn der Gaming-PC aus ist |
+| Erzeugte Passwörter landeten im Gesprächsverlauf | Sie werden vor dem Speichern automatisch durch „[nicht gespeichert]“ ersetzt |
 
 Jede Änderung wird am echten System getestet und mit Regressionstests abgesichert.
 
@@ -124,6 +132,7 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 - **Ins Internet geht nur, was nötig ist:** Websuche, Wetter, News, iCloud.
 - **Privat-Chat:** nichts wird gespeichert, kein Zugriff auf Mail, Kalender, Kontakte, Notizen oder Server.
 - **Bestätigung vor riskanten Aktionen:** PC ausschalten, Termine löschen, Portscan.
+- **Erzeugte Passwörter und PINs** werden nicht im Gesprächsverlauf gespeichert.
 - **Security-Lab nur im eigenen Netz:** Erlaubnisliste, keine Internet-Ziele, keine Angriffe, alles wird geloggt.
 - **Code des Modells läuft in einer Sandbox:** Docker ohne Netz, schreibgeschützt, ohne Rechte, mit Speicher- und Zeitlimit.
 - **Zugangsdaten** liegen geschützt auf dem Server, nie im Code, Log oder Chat. In diesem Repo sind Geräte-Adressen Platzhalter, Vorlage: [`.env.example`](.env.example).
@@ -140,7 +149,7 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 
 - **Strengere Sperre für fremde Inhalte:** Nachdem JARVIS eine Mail oder Webseite gelesen hat, darf er in derselben Runde keine Aktionen mehr ausführen.
 - **Messbare Qualität:** feste Testfragen pro Modell, Ergebnisse als Tabelle hier in der Doku.
-- **Kleine Werkzeuge** wie QR-Codes, Zufallszahlen und Passwörter, Einheiten umrechnen.
+- ~~Kleine Werkzeuge wie QR-Codes, Zufallszahlen und Passwörter, Einheiten umrechnen~~ erledigt, dazu Spiele und Monitoring.
 
 ## Projektstruktur
 
@@ -151,8 +160,11 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 | `src/truth_guard.py` | Wahrheits-Wächter, eigenständig mit Demo |
 | `src/voice_proxy.py` | Sprache: Whisper, Modell, Piper |
 | `src/jarvis_watch.py` | Wache und Morgenbriefing |
-| `src/jarvis_*.py` | einzelne Werkzeuge (Kalender, Mail, Wissensbasis, Dateien, Bilder, Security-Lab …) |
-| `ui/` | Web-Oberfläche |
+| `src/jarvis_tools_small.py` | Kleine Helfer: Rechnen, Zufall, Passwort, QR-Code, Umrechnen (mit und ohne Modell) |
+| `src/jarvis_games.py` | Spiele mit Zustand pro Gespräch |
+| `src/jarvis_metrics.py` | Monitoring: Messpunkte, Verlauf, Bericht |
+| `src/jarvis_*.py` | weitere Werkzeuge (Kalender, Mail, Wissensbasis, Dateien, Bilder, Security-Lab …) |
+| `ui/` | Web-Oberfläche und Monitoring-Seite |
 | `demo/` | interaktive Demo |
 | `systemd/` | Dienst-Definitionen |
 | `docs/` | [Architektur](docs/ARCHITEKTUR.md) und Screenshots |
@@ -176,7 +188,7 @@ I am an IT apprentice in my second year (platform development) in Switzerland. J
 - **Goal:** an assistant I can trust with my calendar, mail and notes without a cloud, one that acts instead of just chatting.
 - **Problem:** cloud assistants see everything, large models need a GPU I don't want running 24/7, and small models invent success messages.
 - **Solution:** an always-on laptop with a small model (granite4:3b) handles simple requests and wakes my gaming PC via Wake-on-LAN for the large model (gemma4:26b) when needed, then shuts it down again. A **truth guard** checks every answer against the tools that were actually called.
-- **Features:** about 40 tools, including reminders, calendar, mail, notes, shopping list, web search, documents, a knowledge base, Office files, image generation, a code sandbox, PC control, a home-network security lab, a morning brief and push alerts.
+- **Features:** over 45 tools, including reminders, calendar, mail, notes, shopping list, web search, documents, a knowledge base, Office files, image generation, a code sandbox, PC control, a home-network security lab, a morning brief and push alerts. Small helpers (exact calculator, unit and currency conversion, real randomness, passwords, QR codes incl. WLAN) and four games run in code and answer short commands instantly without a model. A monitoring page keeps 14 days of server history.
 - **Stack:** Python (FastAPI), Ollama, Whisper, Piper, ComfyUI, Debian, systemd, Docker, SQLite, Tailscale, ntfy.
 - **Demo:** open [`demo/index.html`](demo/index.html) to click through possible conversations (scripted, no live model). The screenshots above are real.
 - **Built with Claude:** I developed JARVIS in close collaboration with Claude (Anthropic), mainly Claude Code, which planned with me, wrote much of the code, debugged and built tests. Idea, decisions, setup and real-world testing are mine.

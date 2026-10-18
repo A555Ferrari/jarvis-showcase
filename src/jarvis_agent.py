@@ -250,6 +250,10 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {}}}},
 ]
 
+# Kleine Werkzeuge, Spiele, Monitoring (18.10.2026): Beschreibungen in den eigenen Modulen
+import jarvis_tools_small as _jts, jarvis_games as _jgm, jarvis_metrics as _jmx
+TOOLS += _jts.TOOLS + [_jgm.TOOL, _jmx.TOOL]
+
 
 def _chunk(model, text):
     return json.dumps({"model": model, "message": {"role": "assistant", "content": text}, "done": False}) + "\n"
@@ -306,6 +310,9 @@ def _find_claim_violation(text, called_names):
         if not m or (required & called_names):
             continue
         window = text[max(0, m.start() - 40):m.end() + 40]   # Hedge-Wort kann vor ODER nach dem Treffer stehen ("gespeichert, sobald...")
+        if required == {"pc_ausschalten"} and (called_names & {"monitoring", "system_status"}) \
+                and not re.search(r"\b(habe|hab|hatte|wurde|werde|ich)\b", window, re.I):
+            continue      # 18.10.: Zustand aus Status-/Monitoring-Daten ("der PC war ausgeschaltet"), keine behauptete Aktion
         if _HEDGE_RE.search(window) and not re.search(r"gesendet|abgeschickt|ausgel(ö|oe)st", m.group(0), re.I):
             continue      # "gesendet" ist eine abgeschlossene Aktion; ein "sollte" daneben ("sollte sich ausschalten") entschaerft sie nicht
         return m.group(0), required

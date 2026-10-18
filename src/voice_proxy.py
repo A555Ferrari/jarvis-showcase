@@ -712,6 +712,19 @@ async def voice_ws(websocket: WebSocket):
             eph_schedule_end(_eid)
 
 
+@app.get("/monitor")
+async def monitor_page():
+    """Monitoring-Seite (gleiche Herkunft wie die Daten, kein CORS noetig)."""
+    return FileResponse("/opt/jarvis/monitor.html", media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/monitor/data")
+async def monitor_data(hours: float = 24):
+    async with httpx.AsyncClient(timeout=30.0) as c:
+        r = await c.get("http://127.0.0.1:11435/api/monitor", params={"hours": max(1.0, min(336.0, float(hours)))})
+    return JSONResponse(r.json(), status_code=r.status_code, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "whisper_model": WHISPER_SIZE}

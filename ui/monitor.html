@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JARVIS Monitoring</title>
+<style>
+:root{
+  --bg:#04060C; --panel:#070A13; --panel2:#0B101C; --line:#131B2E;
+  --line-c:rgba(61,217,240,.22); --text:#CBD8E8; --soft:#8496AE; --dim:#46566F;
+  --cyan:#3DD9F0; --gold:#FFC145; --red:#FF3355; --green:#19E68C; --violet:#9B8CFF;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(900px 520px at 62% 108%,rgba(61,217,240,.08),transparent 70%),
+  linear-gradient(rgba(61,217,240,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(61,217,240,.025) 1px,transparent 1px);
+  background-size:auto,46px 46px,46px 46px}
+.hud{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 16px 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between;margin-bottom:18px}
+.brand{font-family:var(--mono);font-size:16px;letter-spacing:.42em;color:var(--cyan);font-weight:700}
+.brand small{display:block;font-size:8px;letter-spacing:.24em;color:var(--dim);margin-top:5px;font-weight:400}
+.ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ctrl button,.ctrl a{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--soft);
+  border:1px solid var(--line);background:var(--panel);padding:8px 11px;border-radius:8px;cursor:pointer;text-decoration:none}
+.ctrl button.on{color:var(--cyan);border-color:var(--line-c);background:rgba(61,217,240,.08)}
+.upd{color:var(--dim)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+.tile .k{color:var(--dim)}
+.tile .v{font-family:var(--mono);font-size:22px;margin-top:8px;color:var(--text);font-variant-numeric:tabular-nums}
+.tile .s{font-size:11.5px;color:var(--soft);margin-top:4px;line-height:1.35}
+.ok{color:var(--green)!important}.warn{color:var(--gold)!important}.bad{color:var(--red)!important}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px}
+.card h2{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.card h2 span:first-child{color:var(--soft)}
+.leg{display:flex;gap:12px;font-size:11px;color:var(--soft);flex-wrap:wrap}
+.leg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.ax{font-family:var(--mono);font-size:9px;fill:var(--dim)}
+.gl{stroke:var(--line);stroke-width:1}
+.tip{position:fixed;pointer-events:none;background:#0d1322;border:1px solid var(--line-c);border-radius:8px;padding:7px 9px;
+  font-family:var(--mono);font-size:11px;color:var(--text);display:none;z-index:9;white-space:nowrap}
+.list{margin-top:14px}
+.list li{list-style:none;padding:9px 0;border-top:1px solid var(--line);font-size:13px;color:var(--soft);display:flex;gap:10px}
+.list li b{font-weight:500;color:var(--text)}
+.empty{padding:40px;text-align:center;color:var(--soft)}
+.grid>*,.tiles>*{min-width:0}
+html,body{overflow-x:hidden}
+@media (max-width:520px){.grid{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tile .v{font-size:19px}.wrap{padding:16px 12px 32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">JARVIS<small>Monitoring · Laptop-Server</small></div>
+    <div class="ctrl" id="rng">
+      <button data-h="6">6 h</button><button data-h="24" class="on">24 h</button><button data-h="168">7 Tage</button><button data-h="336">14 Tage</button>
+      <a href="javascript:history.back()">Zurück</a>
+    </div>
+  </header>
+  <div class="hud upd" id="upd" style="margin:-6px 0 14px">Lade…</div>
+  <div class="tiles" id="tiles"></div>
+  <div class="grid">
+    <div class="card"><h2><span class="hud">CPU-Last und Temperatur</span><span class="leg"><span><i style="background:var(--cyan)"></i>Last %</span><span><i style="background:var(--gold)"></i>°C</span></span></h2><div id="c1"></div></div>
+    <div class="card"><h2><span class="hud">Arbeitsspeicher und Festplatte</span><span class="leg"><span><i style="background:var(--violet)"></i>RAM %</span><span><i style="background:var(--green)"></i>Disk %</span></span></h2><div id="c2"></div></div>
+    <div class="card"><h2><span class="hud">Netzwerk</span><span class="leg"><span><i style="background:var(--cyan)"></i>Empfang kB/s</span><span><i style="background:var(--gold)"></i>Senden kB/s</span></span></h2><div id="c3"></div></div>
+    <div class="card"><h2><span class="hud">Antwortzeit Chat</span><span class="leg"><span><i style="background:var(--green)"></i>bis Antwortbeginn (s)</span></span></h2><div id="c4"></div></div>
+    <div class="card" style="grid-column:1/-1"><h2><span class="hud">Gaming-PC und Stromversorgung</span><span class="leg"><span><i style="background:var(--cyan)"></i>PC an</span><span><i style="background:var(--red)"></i>Akkubetrieb</span></span></h2><div id="c5"></div></div>
+  </div>
+  <ul class="list" id="ev"></ul>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+var H=24, DATA=null;
+var $=function(id){return document.getElementById(id)};
+function fmtT(t,long){var d=new Date(t*1000);var hh=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+  return (H>30||long)?(d.getDate()+'.'+(d.getMonth()+1)+'. '+hh):hh}
+function cls(v,w,b){return v==null?'':(v>=b?'bad':v>=w?'warn':'ok')}
+function tile(k,v,s,c){return '<div class="tile"><div class="k hud">'+k+'</div><div class="v '+(c||'')+'">'+v+'</div><div class="s">'+(s||'')+'</div></div>'}
+function n(v,d){return v==null?'–':Number(v).toFixed(d==null?0:d)}
+
+function chart(el, S, series, opt){
+  opt=opt||{};
+  var W=Math.max(240,el.clientWidth||560),Hh=opt.h||170,pl=34,pr=opt.right?34:8,pt=8,pb=20,iw=W-pl-pr,ih=Hh-pt-pb;
+  if(!S.length){el.innerHTML='<div class="empty">Noch keine Daten</div>';return}
+  var t0=S[0].t,t1=S[S.length-1].t||t0+1;if(t1===t0)t1=t0+60;
+  var x=function(t){return pl+(t-t0)/(t1-t0)*iw};
+  var g='<svg viewBox="0 0 '+W+' '+Hh+'" role="img">';
+  var scales={};
+  series.forEach(function(se){var ax=se.axis||'l';var mx=se.max;
+    if(mx==null){mx=0;S.forEach(function(p){if(p[se.key]!=null&&p[se.key]>mx)mx=p[se.key]});mx=mx<=0?1:mx*1.15}
+    if(!scales[ax]||mx>scales[ax])scales[ax]=mx});
+  for(var i=0;i<=4;i++){var yy=pt+ih*i/4;g+='<line class="gl" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+yy+'" y2="'+yy+'"/>';
+    g+='<text class="ax" x="'+(pl-5)+'" y="'+(yy+3)+'" text-anchor="end">'+n(scales.l*(1-i/4),scales.l<10?1:0)+'</text>';
+    if(opt.right&&scales.r!=null)g+='<text class="ax" x="'+(W-pr+5)+'" y="'+(yy+3)+'">'+n(scales.r*(1-i/4),0)+'</text>'}
+  for(var j=0;j<=4;j++){var tt=t0+(t1-t0)*j/4;g+='<text class="ax" x="'+x(tt)+'" y="'+(Hh-5)+'" text-anchor="'+(j==0?'start':j==4?'end':'middle')+'">'+fmtT(tt)+'</text>'}
+  series.forEach(function(se){var mx=scales[se.axis||'l'];var y=function(v){return pt+ih-(v/mx)*ih};var d='',pen=false,area='';
+    S.forEach(function(p){var v=p[se.key];if(v==null){pen=false;return}var X=x(p.t).toFixed(1),Y=y(v).toFixed(1);d+=(pen?'L':'M')+X+' '+Y;pen=true});
+    if(se.fill){var pts=S.filter(function(p){return p[se.key]!=null});if(pts.length)area='M'+x(pts[0].t)+' '+(pt+ih)+d.replace(/M/g,'L')+'L'+x(pts[pts.length-1].t)+' '+(pt+ih)+'Z';
+      g+='<path d="'+area+'" fill="'+se.color+'" opacity=".10"/>'}
+    g+='<path d="'+d+'" fill="none" stroke="'+se.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'});
+  g+='<line id="'+el.id+'h" x1="0" x2="0" y1="'+pt+'" y2="'+(pt+ih)+'" stroke="var(--line-c)" stroke-width="1" style="display:none"/>';
+  g+='<rect x="'+pl+'" y="'+pt+'" width="'+iw+'" height="'+ih+'" fill="transparent" class="hit"/></svg>';
+  el.innerHTML=g;hover(el,S,series,x,t0,t1,pl,iw,W)}
+
+function strips(el,S){
+  var W=Math.max(240,el.clientWidth||560),Hh=64,pl=34,pr=8,iw=W-pl-pr;if(!S.length){el.innerHTML='<div class="empty">Noch keine Daten</div>';return}
+  var t0=S[0].t,t1=S[S.length-1].t;if(t1===t0)t1=t0+60;var x=function(t){return pl+(t-t0)/(t1-t0)*iw};
+  var g='<svg viewBox="0 0 '+W+' '+Hh+'">';
+  [['pc','PC',4,'var(--cyan)',1],['ac','Akku',28,'var(--red)',0]].forEach(function(r){
+    g+='<text class="ax" x="'+(pl-5)+'" y="'+(r[2]+12)+'" text-anchor="end">'+r[1]+'</text><rect x="'+pl+'" y="'+r[2]+'" width="'+iw+'" height="16" rx="3" fill="var(--panel)" stroke="var(--line)"/>';
+    for(var i=0;i<S.length;i++){if(S[i][r[0]]===r[4]){var a=i?S[i-1].t:S[i].t-60;g+='<rect x="'+x(Math.max(t0,a))+'" y="'+r[2]+'" width="'+Math.max(1,x(S[i].t)-x(Math.max(t0,a)))+'" height="16" fill="'+r[3]+'" opacity=".75"/>'}}});
+  for(var j=0;j<=4;j++){var tt=t0+(t1-t0)*j/4;g+='<text class="ax" x="'+x(tt)+'" y="'+(Hh-3)+'" text-anchor="'+(j==0?'start':j==4?'end':'middle')+'">'+fmtT(tt)+'</text>'}
+  el.innerHTML=g+'</svg>'}
+
+function hover(el,S,series,x,t0,t1,pl,iw,W){
+  var svg=el.querySelector('svg'),hit=el.querySelector('.hit'),ln=document.getElementById(el.id+'h'),tip=$('tip');
+  function at(ev){var r=svg.getBoundingClientRect();var px=(ev.clientX-r.left)/r.width*W;var t=t0+(px-pl)/iw*(t1-t0);
+    var best=S[0];S.forEach(function(p){if(Math.abs(p.t-t)<Math.abs(best.t-t))best=p});return best}
+  function show(ev){var p=at(ev);ln.setAttribute('x1',x(p.t));ln.setAttribute('x2',x(p.t));ln.style.display='';
+    tip.innerHTML=fmtT(p.t,true)+'<br>'+series.map(function(se){return '<span style="color:'+se.color+'">■</span> '+se.label+': '+(p[se.key]==null?'–':n(p[se.key]*(se.mul||1),se.dec==null?1:se.dec))+(se.unit||'')}).join('<br>');
+    tip.style.display='block';var tx=ev.clientX+14,ty=ev.clientY+14;if(tx+180>innerWidth)tx=ev.clientX-190;tip.style.left=tx+'px';tip.style.top=ty+'px'}
+  function hide(){ln.style.display='none';tip.style.display='none'}
+  hit.addEventListener('mousemove',show);hit.addEventListener('mouseleave',hide);
+  hit.addEventListener('touchstart',function(e){show(e.touches[0])},{passive:true});hit.addEventListener('touchend',hide)}
+
+function render(){
+  var r=DATA.report,S=DATA.series,now=r.now;
+  if(!now){$('tiles').innerHTML='';$('upd').textContent='Noch keine Messwerte. Der Wächter misst einmal pro Minute.';return}
+  var age=Math.round(Date.now()/1000-now.t);
+  $('upd').textContent='Stand '+fmtT(now.t,true)+' · vor '+age+' s · '+r.samples+' Messpunkte · aktualisiert sich jede Minute';
+  var q=r.requests||{};
+  $('tiles').innerHTML=
+    tile('CPU',n(now.cpu)+' %','Ø '+n((r.cpu||{}).avg)+' % · max '+n((r.cpu||{}).max)+' %',cls(now.cpu,70,90))+
+    tile('Temperatur',n(now.temp)+' °C','max '+n((r.temp||{}).max)+' °C · SSD '+n(now.ssd_temp)+' °C',cls(now.temp,75,90))+
+    tile('RAM',n(now.ram)+' %',n(now.ram_gb,1)+' von '+n(now.ram_total_gb,0)+' GiB',cls(now.ram,80,92))+
+    tile('Festplatte',n(now.disk)+' %',n(now.disk_free_gb,0)+' GiB frei',cls(now.disk,80,90))+
+    tile('Strom',now.ac?'Netz':'AKKU',(now.bat!=null?'Akku '+now.bat+' %':'')+(r.on_battery_min?' · '+r.on_battery_min+' min auf Akku':''),now.ac?'ok':'bad')+
+    tile('Gaming-PC',now.pc?'AN':'AUS',r.pc_on_h+' h an · '+r.pc_starts+'× gestartet',now.pc?'warn':'')+
+    tile('Antwortzeit',q.median_ms!=null?n(q.median_ms/1000,1)+' s':'–',q.n?(q.n+' Anfragen · 90 % < '+n(q.p90_ms/1000,1)+' s'):'keine Anfragen',cls(q.median_ms,8000,20000))+
+    tile('Laufzeit',n(now.uptime_h/24,1)+' T','Netz: '+n((r.net_gb||{}).rx,1)+' GB rein · '+n((r.net_gb||{}).tx,1)+' GB raus');
+  chart($('c1'),S,[{key:'cpu',label:'CPU',color:'var(--cyan)',max:100,unit:' %',fill:1},{key:'temp',label:'Temp',color:'var(--gold)',axis:'r',max:100,unit:' °C'}],{right:1});
+  chart($('c2'),S,[{key:'ram',label:'RAM',color:'var(--violet)',max:100,unit:' %',fill:1},{key:'disk',label:'Disk',color:'var(--green)',max:100,unit:' %'}]);
+  chart($('c3'),S,[{key:'rx_kbs',label:'Empfang',color:'var(--cyan)',unit:' kB/s',fill:1},{key:'tx_kbs',label:'Senden',color:'var(--gold)',unit:' kB/s'}]);
+  chart($('c4'),S.map(function(p){return {t:p.t,req:p.req_ms==null?null:p.req_ms/1000}}),[{key:'req',label:'Antwortbeginn',color:'var(--green)',unit:' s',dec:1}]);
+  strips($('c5'),S);
+  var ev=[];
+  Object.keys(now.svc||{}).forEach(function(u){if(now.svc[u]!=='active'&&u!=='jarvis-stt-tunnel')ev.push(['bad','Dienst '+u+' ist '+now.svc[u]])});
+  (now.ctr_down||[]).forEach(function(c){ev.push(['bad','Container '+c+' läuft nicht'])});
+  Object.keys(r.restarts||{}).forEach(function(u){ev.push(['warn',u+' wurde '+r.restarts[u]+'× neu gestartet'])});
+  Object.keys(r.svc_down_min||{}).forEach(function(u){ev.push(['warn',u+' war '+r.svc_down_min[u]+' min nicht aktiv'])});
+  if(r.on_battery_min)ev.push(['warn','Server lief '+r.on_battery_min+' min auf Akku (tiefster Stand '+r.bat_min+' %)']);
+  if(q.errors)ev.push(['warn',q.errors+' Serverfehler bei Chat-Anfragen']);
+  if(!ev.length)ev.push(['ok','Keine Auffälligkeiten im gewählten Zeitraum']);
+  $('ev').innerHTML=ev.map(function(e){return '<li><b class="'+e[0]+'">●</b>'+e[1]+'</li>'}).join('')}
+
+function load(){fetch('monitor/data?hours='+H,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+  .then(function(d){DATA=d;render()}).catch(function(e){$('upd').textContent='Daten nicht erreichbar ('+e.message+')'})}
+$('rng').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;H=+b.dataset.h;
+  [].forEach.call(this.querySelectorAll('button'),function(x){x.classList.toggle('on',x===b)});load()});
+load();setInterval(load,60000);
+var _rz;addEventListener('resize',function(){clearTimeout(_rz);_rz=setTimeout(function(){if(DATA)render()},200)});
+</script>
+</body>
+</html>

@@ -67,6 +67,25 @@ eine Erinnerung, wenn der Gaming-PC zu lange laeuft (15/30/60 min, dann
 stuendlich), damit er nicht vergessen anbleibt. Entprellung und Hysterese
 verhindern Alarm-Flattern bei kurzen Neustarts/Wartung.
 
+## 6. Kleine Helfer, Spiele, Monitoring (18.10.2026)
+
+Rechnen, Zufall, Passwoerter, QR-Codes, Umrechnen und die Spiele laufen komplett im Code
+(`src/jarvis_tools_small.py`, `src/jarvis_games.py`). Ein Sprachmodell rechnet ungenau und
+kann nicht wirklich wuerfeln, darum entscheidet es hoechstens, *welches* Werkzeug gebraucht wird.
+
+```
+Nachricht --> eindeutiger Kurzbefehl? ("wuerfle", "17*23", "100 CHF in EUR", Spielzug)
+                 |-- ja   --> Antwort direkt aus dem Code, ohne Modell, auch bei PC aus
+                 |-- nein --> normaler Weg: Agent-Schleife ruft dieselben Funktionen als Werkzeug auf
+```
+
+Erzeugte Passwoerter und WLAN-Passwoerter werden vor dem Speichern aus dem Verlauf entfernt.
+
+Der Waechter schreibt jede Minute einen Messpunkt (CPU, Temperatur, RAM, Disk, Akku/Netzteil,
+Netzwerk, Gaming-PC, Antwortzeiten, Dienst-Neustarts) in eine lokale SQLite-Datenbank (14 Tage).
+Daraus lesen das Werkzeug `monitoring` und die Monitoring-Seite (`ui/monitor.html`).
+Neue Alarme: CPU ueber 90 Grad und Server auf Akku (Stromausfall).
+
 ## Grundsaetze
 
 - **Lokal und privat** — eigene Hardware, keine Cloud fuer Kernfunktionen.

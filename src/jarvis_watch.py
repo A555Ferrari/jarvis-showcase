@@ -6,6 +6,7 @@ sys.path.insert(0, "/opt/jarvis")
 import jarvis_brief as jb
 import jarvis_remind as jr
 import jarvis_proactive as jp
+import jarvis_metrics as jmet        # Monitoring-Verlauf (18.10.)
 
 TZ = ZoneInfo("Europe/Zurich")
 STATE = "/var/lib/jarvis/watch_state.json"
@@ -88,6 +89,17 @@ def check_local(pc_since=0, pc_on=False):
         urllib.request.urlopen("http://127.0.0.1:11435/api/pc", timeout=6).read()
     except Exception:
         p["proxy"] = "JARVIS-Proxy antwortet nicht"
+    # 18.10.: Temperatur und Stromversorgung (der Server ist ein Laptop: Akkubetrieb heisst Stromausfall oder Netzteil ab)
+    try:
+        import psutil
+        pk = [x.current for x in psutil.sensors_temperatures().get("coretemp", []) if x.label.startswith("Package")]
+        if pk and pk[0] >= 90:
+            p["temp"] = f"CPU-Temperatur {pk[0]:.0f} °C"
+        b = psutil.sensors_battery()
+        if b and not b.power_plugged:
+            p["power"] = f"Server läuft auf Akku ({b.percent:.0f} %): Stromausfall oder Netzteil getrennt?"
+    except Exception:
+        pass
     return p
 
 
@@ -203,6 +215,10 @@ def main():
                 except Exception as e:
                     log("Briefing FEHLER", repr(e)[:200])
             save(s)
+            try:
+                jmet.sample_store()
+            except Exception as e:
+                log("Monitoring FEHLER", repr(e)[:150])
         except Exception as e:
             log("Schleife FEHLER", repr(e)[:200])
         time.sleep(60)
