@@ -4,9 +4,11 @@
 
 Ich bin Informatiker-Lernender im 2. Lehrjahr (EFZ, Fachrichtung Plattformentwicklung) in der Schweiz. JARVIS ist mein Freizeitprojekt seit Juli 2026: ein Sprach- und Chat-Assistent, der komplett auf meiner eigenen Hardware läuft und im Alltag wirklich Dinge erledigt.
 
-![JARVIS Oberfläche](docs/screenshot-ui.png)
+![JARVIS in Aktion](docs/demo.gif)
 
-*Echte JARVIS-Oberfläche. Die Chat-Titel in der Seitenleiste sind erfundene Beispiele.*
+*Echte JARVIS-Oberfläche in rund 70 Sekunden: Würfeln, Franken umrechnen, Tic-Tac-Toe, ein Word-Dokument vom Gaming-PC und das Monitoring. Während der Gaming-PC startet, läuft das Video im Zeitraffer. Die Chat-Titel in der Seitenleiste sind erfundene Beispiele. [Video in voller Qualität (MP4)](docs/demo.mp4)*
+
+**Selbst ausprobieren:** [Interaktive Demo im Browser](https://a555ferrari.github.io/jarvis-showcase/demo/) (geskriptet, ohne echtes Modell)
 
 ---
 
@@ -70,7 +72,11 @@ Ausserdem wollte ich lernen, wie man so ein System von Grund auf aufbaut: Server
 
 ## So sieht es aus
 
-Die zwei Screenshots sind echt. Oben der Startbildschirm, hier ein Privat-Chat mit einer Beispielfrage:
+Alle Bilder sind echt. Der Startbildschirm (die Chat-Titel in der Seitenleiste sind erfundene Beispiele):
+
+![JARVIS Oberfläche](docs/screenshot-ui.png)
+
+Ein Privat-Chat mit einer Beispielfrage:
 
 ![JARVIS Privat-Chat](docs/screenshot-chat.png)
 
@@ -190,7 +196,7 @@ I am an IT apprentice in my second year (platform development) in Switzerland. J
 - **Solution:** an always-on laptop with a small model (granite4:3b) handles simple requests and wakes my gaming PC via Wake-on-LAN for the large model (gemma4:26b) when needed, then shuts it down again. A **truth guard** checks every answer against the tools that were actually called.
 - **Features:** over 45 tools, including reminders, calendar, mail, notes, shopping list, web search, documents, a knowledge base, Office files, image generation, a code sandbox, PC control, a home-network security lab, a morning brief and push alerts. Small helpers (exact calculator, unit and currency conversion, real randomness, passwords, QR codes incl. WLAN) and four games run in code and answer short commands instantly without a model. A monitoring page keeps 14 days of server history.
 - **Stack:** Python (FastAPI), Ollama, Whisper, Piper, ComfyUI, Debian, systemd, Docker, SQLite, Tailscale, ntfy.
-- **Demo:** open [`demo/index.html`](demo/index.html) to click through possible conversations (scripted, no live model). The screenshots above are real.
+- **Demo:** open [`demo/index.html`](demo/index.html) to click through possible conversations (scripted, no live model), also online at https://a555ferrari.github.io/jarvis-showcase/demo/. The video and screenshots above are real.
 - **Built with Claude:** I developed JARVIS in close collaboration with Claude (Anthropic), mainly Claude Code, which planned with me, wrote much of the code, debugged and built tests. Idea, decisions, setup and real-world testing are mine.
 - **Questions?** Open an [issue](../../issues).
 
