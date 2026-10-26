@@ -1,6 +1,6 @@
 # JARVIS: mein privater KI-Assistent auf eigener Hardware
 
-*Projektdokumentation · Deutsch zuerst, [English summary below](#english-summary).*
+*Projektdokumentation · Deutsch zuerst · [English version](README.en.md) · [English summary below](#english-summary).*
 
 Ich bin Informatiker-Lernender im 2. Lehrjahr (EFZ, Fachrichtung Plattformentwicklung) in der Schweiz. JARVIS ist mein Freizeitprojekt seit Juli 2026: ein Sprach- und Chat-Assistent, der komplett auf meiner eigenen Hardware läuft und im Alltag wirklich Dinge erledigt.
 

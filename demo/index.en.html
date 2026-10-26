@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS · Live demo</title>
+<style>
+:root{--bg:#04060C;--panel:#070A13;--panel2:#0B101C;--line:#131B2E;--line-c:rgba(61,217,240,.22);--text:#CBD8E8;--soft:#8496AE;--dim:#46566F;--cyan:#3DD9F0;--cyan-dim:rgba(61,217,240,.10);--gold:#FFC145;--red:#FF3355;--green:#19E68C;--mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,"Segoe UI",Inter,sans-serif;overflow:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 62% 108%,rgba(61,217,240,.10),transparent 70%),linear-gradient(rgba(61,217,240,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(61,217,240,.028) 1px,transparent 1px);background-size:auto,46px 46px,46px 46px}
+.hud{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase}
+.app{position:relative;display:grid;grid-template-columns:270px 1fr 340px;height:100vh}
+.side,.how{background:linear-gradient(180deg,rgba(9,13,24,.96),rgba(6,9,17,.96));display:flex;flex-direction:column;min-height:0}
+.side{border-right:1px solid var(--line-c)}.how{border-left:1px solid var(--line-c)}
+.brand{padding:18px}.brand b{font-family:var(--mono);font-size:15px;letter-spacing:.42em;color:var(--cyan)}
+.brand div{font-family:var(--mono);font-size:7.5px;letter-spacing:.2em;color:var(--dim);margin-top:4px;text-transform:uppercase}
+.lbl{padding:10px 18px 6px;color:var(--dim)}
+.sc{padding:9px 14px;margin:0 8px;border-radius:4px;border-left:2px solid transparent;cursor:pointer;font-size:13px;color:var(--soft)}
+.sc:hover{background:rgba(61,217,240,.06)}.sc.cur{background:rgba(61,217,240,.10);border-left-color:var(--cyan);color:var(--text)}
+.sc small{display:block;font:8.5px var(--mono);letter-spacing:.12em;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.sys{margin-top:auto;border-top:1px solid var(--line);padding:8px 0 12px}
+.sysrow{display:flex;align-items:center;gap:9px;padding:5px 18px;font-size:12.5px;color:var(--soft)}
+.sysrow b{margin-left:auto;font:600 9px var(--mono);letter-spacing:.2em;color:var(--text)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}.dot.on{background:var(--green);box-shadow:0 0 9px var(--green)}.dot.off{background:var(--red);box-shadow:0 0 9px rgba(255,51,85,.7)}.dot.wait{background:var(--gold);box-shadow:0 0 9px var(--gold);animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.35}}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+#chat{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:11px}
+.m{max-width:min(620px,92%);padding:11px 15px;border-radius:6px;white-space:pre-wrap}
+.u{align-self:flex-end;background:var(--cyan-dim);border:1px solid var(--line-c)}
+.j{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+.j.fix{border-color:var(--gold)}
+.tool{align-self:flex-start;font:11px var(--mono);color:var(--green);border:1px solid rgba(25,230,140,.3);border-radius:4px;padding:3px 9px}
+.note{align-self:flex-start;font:11px var(--mono);letter-spacing:.06em;color:var(--gold)}
+#chips{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;background:var(--panel)}
+#chips p{width:100%;color:var(--dim)}
+#chips button{font:inherit;color:var(--cyan);background:var(--cyan-dim);border:1px solid var(--line-c);border-radius:4px;padding:8px 13px;cursor:pointer}
+#chips button:hover{box-shadow:0 0 16px rgba(61,217,240,.2)}
+.how{padding:18px;overflow:auto;gap:12px}
+.how h3{font:11px var(--mono);letter-spacing:.22em;color:var(--cyan);text-transform:uppercase}
+.how h4{font:9.5px var(--mono);letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:6px}
+.how p{font-size:13px;color:var(--soft)}
+.how pre{font:11px/1.5 var(--mono);background:#02040a;border:1px solid var(--line);border-radius:4px;padding:9px;white-space:pre-wrap;color:#9fe9f7}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tags span{font:9px var(--mono);letter-spacing:.1em;border:1px solid var(--line-c);border-radius:99px;padding:2px 8px;color:var(--soft)}
+@media(max-width:1000px){.app{grid-template-columns:1fr}.side,.how{display:none}body{overflow:auto}}
+</style></head><body><div class="app">
+<aside class="side"><div class="brand"><b>JARVIS</b><div>Private AI assistant · Live demo · <a href="index.html" style="color:var(--cyan)">Deutsch</a></div></div>
+<div class="lbl hud">Scenarios</div><div id="list"></div>
+<div class="sys"><div class="sysrow"><span class="dot on"></span>Laptop (24/7)<b>3B</b></div><div class="sysrow"><span class="dot off" id="pcdot"></span>Gaming PC<b id="pctxt">OFF</b></div></div></aside>
+<main><div id="chat"></div><div id="chips"></div></main>
+<aside class="how" id="how"></aside></div>
+<script>
+const SC={
+rem:{t:"Set a reminder",m:"Tool calling",u:"Remind me tomorrow at 8 am about the standup.",pc:1,tools:["erinnerung_setzen(zeit='morgen 08:00', text='Standup')"],
+ r:"Done, sir. Reminder saved for tomorrow 08:00: «Standup». I will send you a push message on your phone at that time.",next:["snooze","rep"],
+ how:{p:"A chatbot can only promise reminders. JARVIS really stores them.",s:"The model picks a tool (tool calling), the agent runs it and returns the result. The reminder is stored in a database, a watchdog checks every minute and sends a push (ntfy) when it is due.",c:"agent loop:\n  model → tool_call(erinnerung_setzen)\n  tool  → saves to DB\n  watch → due this minute? → ntfy push",t:["Python","Ollama tool calling","SQLite","ntfy"]}},
+snooze:{t:"Postpone",u:"Postpone that by 10 minutes.",pc:1,tools:["erinnerung_snooze(minuten=10)"],r:"Moved to 08:10, sir.",next:["list"],
+ how:{p:"Postponing is a tool of its own.",s:"Originally the model created a new reminder for this and the old one stayed. The prompt rule ‹snooze, don't set a new one› and a dedicated tool fixed that.",c:"erinnerung_snooze(minuten)\n→ changes the existing one,\n  keeps the repetition",t:["Prompt rule","Tool design"]}},
+rep:{t:"Recurring",u:"Make that every working day.",pc:1,tools:["erinnerung_setzen(wiederholung='werktags')"],r:"From now on every working day at 08:00, sir.",next:["list"],
+ how:{p:"Repetitions: daily, weekly, working days.",s:"After firing, the watchdog calculates the next due date. Tested in the regression suite.",c:"after push:\n  next = compute(repetition)",t:["Python","Tests"]}},
+list:{t:"Overview",u:"Which reminders do I have?",pc:1,tools:["erinnerungen_zeigen()"],r:"1) Working days 08:00 – Standup\nNothing else open.",next:[],how:{p:"Reading tools change nothing.",s:"The agent fetches the data live from the DB instead of guessing.",c:"erinnerungen_zeigen() → list",t:["SQLite"]}},
+wake:{t:"Wake PC & announce",m:"Routing",u:"Summarise my unread mails.",pc:2,tools:["wake_and_wait()  →  Wake-on-LAN","mails_lesen(limit=5)"],
+ note:"I have started the gaming PC, sir.",r:"You have 3 unread mails: invoice (hosting), appointment request for Thursday, newsletter. The appointment request looks the most urgent.",next:["late"],
+ how:{p:"The small model on the laptop is not enough for everything.",s:"If a request needs tools or a lot of compute, the router wakes the gaming PC via Wake-on-LAN, waits until Ollama answers and tells you openly. The status is checked through the Ollama port because Windows blocks pings.",c:"if not pc_online():\n  wake_and_wait()  # WoL packets\nantwort = \"Ich habe den Gaming-PC\n  gestartet, Sir.\" + ergebnis",t:["Wake-on-LAN","FastAPI","Ollama"]}},
+late:{t:"PC runs too long",u:"(30 minutes later, PC still running)",pc:2,tools:["jarvis_watch → ntfy"],note:"Push to the phone:",r:"The gaming PC has been running for 30 minutes. Still needed, sir, or shall I switch it off?",next:["shut"],
+ how:{p:"Save power without forgetting.",s:"The watchdog reports after 15, 30 and 60 minutes, then every hour. That way the GPU does not run unnoticed for days.",c:"schwellen = [15, 30, 60]\nthen: every full hour",t:["systemd","ntfy"]}},
+shut:{t:"Shut down",m:"Safety",u:"Shut the PC down.",pc:2,tools:[],r:"Shall I really shut the gaming PC down, sir? Afterwards only the small model keeps running. Confirm with yes.",next:["yes"],
+ how:{p:"Risky actions NEVER go through the model alone.",s:"The confirmation question is hard-wired (a regular expression in front of the model). A real bug: the bare «shut down» was first swallowed by the model and nothing happened. Fixed with an extra pattern and a live test.",c:"SHUTDOWN_BARE_RE = re.compile(\n r\"^\\s*(?:ja\\s*,?\\s*)?(?:bitte\\s+)?\"\n r\"(?:ausschalten|herunterfahren)\\.?\")\nPENDING[session] = pc_ausschalten",t:["Regex","Confirmation","Live test"]}},
+yes:{t:"Confirm",u:"Yes.",pc:0,tools:["pc_ausschalten(bestätigt=true)"],r:"The gaming PC is shutting down, sir.",next:[],how:{p:"Only after the yes does it act.",s:"The stored action is executed and the status is checked afterwards.",c:"run_pending() → shutdown",t:["Python"]}},
+scan:{t:"Port scan in the home network",m:"Security lab",u:"Scan my home network for open ports.",pc:2,tools:[],r:"Port scan against 192.168.1.0/24 (own network only, allow list). Shall I start, sir?",next:["scanyes"],
+ how:{p:"A small security lab in the chat.",s:"nmap only runs against private networks (allow list) and only after confirmation. Originally the model could guess the confirmation without any action being stored. Now it is hard-wired.",c:"if ziel not in ALLOWLIST: abort\nPENDING[session] = portscan(ziel)",t:["nmap","Allow list","Confirmation"]}},
+scanyes:{t:"Start scan",u:"Yes, start.",pc:2,tools:["portscan(ziel='192.168.1.0/24')"],r:"Done: 4 devices. Open: router 80/443, NAS 445, printer 9100. Nothing unexpected.",next:[],how:{p:"The result comes from the tool.",s:"The model only summarises what nmap delivered.",c:"nmap -sT -p- ziel",t:["nmap"]}},
+guard:{t:"The Truth Guard",m:"Core idea",u:"Start the backup.",pc:2,tools:[],note:"Without the guard, a model often just answers:",r:"«The backup has been started.»   ← invented, no tool ran",next:["guard2"],
+ how:{p:"The most common problem of local models: they report success without having done anything.",s:"We did not build a nicer prompt for this but a check: every answer is compared with the real tool calls.",c:"claims(‹done›) AND\nno matching tool_call\n→ violation",t:["Pattern detection","Python"]}},
+guard2:{t:"With the guard",u:"And with the Truth Guard?",pc:2,tools:["_find_claim_violation → claim without tool call"],fix:1,r:"Correction: I did not start the backup, sir. No tool was called for it.",next:[],
+ how:{p:"The guard corrects the answer.",s:"Cautious wording (‹would›, ‹if›) is allowed, real success messages without evidence are not. We sharpened this on real mistakes.",c:"_CLAIM_RULES + _HEDGE_RE\n→ corrected answer",t:["Rules","Tests"]}}
+};
+const ORDER=["rem","wake","shut","scan","guard"];
+const $=id=>document.getElementById(id),chat=$("chat"),chips=$("chips"),how=$("how"),list=$("list");
+const add=(c,t)=>{const d=document.createElement("div");d.className=c;d.textContent=t;chat.appendChild(d);chat.scrollTop=1e9;return d};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function pc(s){const d=$("pcdot"),t=$("pctxt");d.className="dot "+(s==1?"off":s==2?"on":"wait");t.textContent=s==2?"ON":s==0?"OFF":"OFF"}
+function showHow(n){const h=n.how;how.innerHTML='<h3>How it works</h3><p>'+h.p+'</p><h4>How we solved it</h4><p>'+h.s+'</p><h4>In the code</h4><pre></pre><h4>Built on</h4><div class="tags"></div>';
+ how.querySelector("pre").textContent=h.c;const tg=how.querySelector(".tags");h.t.forEach(x=>{const s=document.createElement("span");s.textContent=x;tg.appendChild(s)})}
+function side(cur){list.innerHTML="";ORDER.forEach(k=>{const d=document.createElement("div");d.className="sc"+(cur===k?" cur":"");d.innerHTML=SC[k].t+"<small>"+(SC[k].m||"")+"</small>";d.onclick=()=>{chat.innerHTML="";play(k)};list.appendChild(d)})}
+function chipsFor(id){chips.innerHTML='<p class="hud">Next question</p>';const nx=SC[id].next;nx.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>play(k);chips.appendChild(b)});if(!nx.length){const b=document.createElement("button");b.textContent="↺ Pick another scenario";b.onclick=()=>{chat.innerHTML="";start()};chips.appendChild(b)}}
+async function play(id){const n=SC[id];chips.innerHTML="";if(ORDER.includes(id))side(id);add("m u",n.u);showHow(n);await sleep(350);
+ if(id==="wake"){pc(0);}
+ for(const t of n.tools){add("tool","▸ "+t);await sleep(450)}
+ if(id==="wake"){$("pcdot").className="dot wait";await sleep(700)}
+ pc(n.pc);if(n.note){add("note",n.note);await sleep(300)}
+ const d=add("m j"+(n.fix?" fix":""),"");for(const ch of n.r){d.textContent+=ch;chat.scrollTop=1e9;await sleep(10)}chipsFor(id)}
+function start(){side(null);pc(1);chips.innerHTML='<p class="hud">Pick a scenario on the left or here</p>';ORDER.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>{chat.innerHTML="";play(k)};chips.appendChild(b)});
+ how.innerHTML='<h3>How it works</h3><p>JARVIS runs completely locally: a laptop as the router with a small model, a gaming PC as a large compute node when needed.</p><p>Pick a scenario. On the right you can see how we solved it and what it is built on.</p><p style="color:var(--dim)">Answers are pre-scripted (no server); this is how JARVIS behaves in real operation.</p>'}
+start();
+</script></body></html>

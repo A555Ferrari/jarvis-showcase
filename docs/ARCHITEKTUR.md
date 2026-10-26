@@ -1,5 +1,7 @@
 # Architektur
 
+*[English version](ARCHITEKTUR.en.md)*
+
 ## Komponenten
 
 | Teil | Rolle |
