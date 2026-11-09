@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""JARVIS Waechter: prueft jede Minute Dienste/Docker/Disk/RAM/PC und meldet Aenderungen per Push (ntfy); sendet das Morgen-Briefing."""
+"""JARVIS watchdog: checks services/Docker/disk/RAM/PC every minute and reports changes by push (ntfy); sends the morning briefing."""
 import json, os, subprocess, time, urllib.request, datetime as dt, shutil, sys
 from zoneinfo import ZoneInfo
 sys.path.insert(0, "/opt/jarvis")
@@ -14,9 +14,9 @@ CONF = "/var/lib/jarvis/watch_conf.json"           # {"brief_time": "07:00", "br
 NTFY = "http://127.0.0.1:8180/"
 TOPIC = open("/root/.jarvis_ntfy_topic").read().strip()
 SERVICES = ["jarvis-proxy", "jarvis-voice", "jarvis-stt-tunnel", "ollama", "docker", "tailscaled"]
-# Dienste, die nur sinnvoll laufen, wenn der Gaming-PC an ist (Tunnel startet sonst im Takt neu)
+# services that only make sense while the gaming PC is on (otherwise the tunnel restarts in a loop)
 PC_DEPENDENT = {"jarvis-stt-tunnel"}
-PC_GRACE_S = 240  # so lange nach dem Hochfahren des PCs darf der Tunnel noch fehlen
+PC_GRACE_S = 240  # for this long after the PC boots the tunnel may still be missing
 CONTAINERS = ["open-webui", "n8n", "searxng", "jarvis-ui", "ntfy", "paper-trader"]
 REMIND_S = 6 * 3600
 
@@ -65,7 +65,7 @@ def check_local(pc_since=0, pc_on=False):
     p = {}
     for u in SERVICES:
         if u in PC_DEPENDENT and not (pc_on and pc_since and time.time() - pc_since > PC_GRACE_S):
-            continue  # PC aus oder gerade erst gestartet: kein Alarm
+            continue  # PC off or just started: no alarm
         r = subprocess.run(["systemctl", "is-active", u], capture_output=True, text=True)
         if r.stdout.strip() != "active":
             p[f"svc:{u}"] = f"Dienst {u} ist {r.stdout.strip() or 'unbekannt'}"
@@ -89,7 +89,7 @@ def check_local(pc_since=0, pc_on=False):
         urllib.request.urlopen("http://127.0.0.1:11435/api/pc", timeout=6).read()
     except Exception:
         p["proxy"] = "JARVIS-Proxy antwortet nicht"
-    # 18.10.: Temperatur und Stromversorgung (der Server ist ein Laptop: Akkubetrieb heisst Stromausfall oder Netzteil ab)
+    # 18.10.: temperature and power supply (the server is a laptop: running on battery means power outage or adapter unplugged)
     try:
         import psutil
         pk = [x.current for x in psutil.sensors_temperatures().get("coretemp", []) if x.label.startswith("Package")]
@@ -118,7 +118,7 @@ def main():
         try:
             now = time.time()
             raw_cur = check_local(s.get("pc_online_since", 0), pc_online() is True)
-            # Entprellen: erst melden, wenn das Problem in zwei Pruefungen hintereinander auftritt (Neustarts/Wartung loesen keinen Alarm aus)
+            # Debounce: only report when the problem shows up in two checks in a row (restarts/maintenance do not trigger an alarm)
             pend = s.setdefault("pend", {})
             for k in list(pend):
                 if k not in raw_cur:
@@ -128,7 +128,7 @@ def main():
                 pend[k] = pend.get(k, 0) + 1
                 if pend[k] >= 2 or k in s["active"]:
                     cur[k] = v
-            # Hysterese: ein aktives Problem gilt erst nach 3 sauberen Pruefungen als behoben (kein Flattern)
+            # Hysteresis: an active problem only counts as resolved after 3 clean checks (no flapping)
             clr = s.setdefault("clear", {})
             for k in list(clr):
                 if k in raw_cur or k not in s["active"]:
@@ -140,7 +140,7 @@ def main():
                         cur[k] = v
                 else:
                     cur[k] = raw_cur[k]
-            # Aenderungen melden
+            # report changes
             for k, msg in cur.items():
                 if k not in s["active"]:
                     s["since"][k] = now
@@ -155,14 +155,14 @@ def main():
                     push("JARVIS: behoben", s["active"][k] + " - wieder in Ordnung", 2, "white_check_mark")
                     log("BEHOBEN", k)
             s["active"] = cur
-            # PC: nur unerwartetes Offline-Gehen, leise
+            # PC: only unexpected going offline, quietly
             on = pc_online()
             if on:
                 s["pc_off_n"] = 0
                 if not s.get("pc_online_since"):
                     s["pc_online_since"] = now
                     s["pc_reminded"] = []
-                # PC-noch-an Erinnerung: King nicht vergessen lassen auszuschalten (15/30/60 Min, danach stuendlich)
+                # "PC still on" reminder: do not let the owner forget to switch it off (15/30/60 min, then hourly)
                 up_min = (now - s["pc_online_since"]) / 60
                 done = s.setdefault("pc_reminded", [])
                 for thr in (15, 30, 60):
@@ -184,12 +184,12 @@ def main():
                 if s["pc_off_n"] >= 3:
                     s["pc_online_since"] = 0
                     s["pc_reminded"] = []
-            # Proaktive Hinweise (Stufe Mittel): fruehe Termine, Wetter, wichtige Mail - eigene Caps/Ruhezeit im Modul
+            # Proactive hints (level medium): early appointments, weather, important mail - own caps/quiet hours in the module
             try:
                 jp.check(push, log)
             except Exception as e:
                 log("Proaktiv FEHLER", repr(e)[:150])
-            # Erinnerungen faellig?
+            # reminders due?
             try:
                 for rid, due, txt, recur in jr.due_now():
                     late = int((now - due) / 60)

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Spiele fuer zwischendurch (18.10.2026): Zahlenraten, Galgenmaennchen, Tic-Tac-Toe, Schere-Stein-Papier.
+"""Games for in between (18.10.2026): number guessing, hangman, tic-tac-toe, rock-paper-scissors.
 
-Die Spiellogik laeuft komplett im Code (Zufall aus `secrets`, Tic-Tac-Toe mit Minimax) - das Modell kann
-nicht schummeln oder sich verzaehlen. Spielzuege werden direkt beantwortet, ohne Modell, also auch bei
-ausgeschaltetem Gaming-PC. Zustand pro Gespraech in /var/lib/jarvis/games.db, verfaellt nach 1 Stunde.
+The game logic runs entirely in code (randomness from `secrets`, tic-tac-toe with minimax) - the model cannot
+cheat or miscount. Moves are answered directly, without the model, so also while the gaming PC is switched
+off. State per conversation in /var/lib/jarvis/games.db, expires after 1 hour.
 
-handle(session, text, en) -> {"text", "kind"} oder None (dann normal weiter).
+handle(session, text, en) -> {"text", "kind"} or None (then carry on as usual).
 """
 import json, re, secrets, sqlite3, time
 
@@ -91,7 +91,7 @@ def zr_end(st):
     return _L(st, f"Die Zahl wäre {st['n']} gewesen.", f"The number was {st['n']}.")
 
 
-# ── Galgenmaennchen ──────────────────────────────────────────────────────────
+# ── Hangman ─────────────────────────────────────────────────────────────
 WORDS_DE = """APFEL BANANE ERDBEERE SCHOKOLADE PIZZA SPAGHETTI KARTOFFEL BROT KAESE TOMATE
 GITARRE KLAVIER TROMPETE SCHLAGZEUG MUSIK KONZERT MIKROFON KOPFHOERER LAUTSPRECHER RADIO
 FUSSBALL TENNIS VOLLEYBALL BASKETBALL SCHWIMMEN VELO MOTORRAD RENNWAGEN FLUGZEUG ZUG
@@ -215,7 +215,7 @@ def _ai(b, level):
     if level == "leicht":
         return secrets.choice(free)
     if level == "normal":
-        for who in ("O", "X"):                       # gewinnen, sonst blocken
+        for who in ("O", "X"):                       # win, otherwise block
             for i in free:
                 b[i] = who
                 w = _win(b)
@@ -392,7 +392,7 @@ def handle(session, text, en=False):
     return None
 
 
-# ── Agent-Werkzeug ───────────────────────────────────────────────────────────
+# ── Agent tool ────────────────────────────────────────────────────────────────
 TOOL = {"type": "function", "function": {
     "name": "spiel_starten",
     "description": ("Start a small game with the user: zahlenraten (guess the number), galgen (hangman), tictactoe, ssp (rock-paper-scissors). "

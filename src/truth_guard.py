@@ -1,47 +1,48 @@
 #!/usr/bin/env python3
 """
-Wahrheits-Waechter / Truth Guard
-================================
+Truth Guard (Wahrheits-Wächter)
+===============================
 
-Ein kleiner, eigenstaendiger Mechanismus gegen eine konkrete Schwaeche von
-Tool-Calling-LLMs: Das Modell behauptet gelegentlich, eine Aktion sei bereits
-ausgefuehrt ("Der Timer ist gestellt", "Die Mail wurde gesendet",
-"Der PC faehrt jetzt herunter"), OHNE das zustaendige Werkzeug in dieser Runde
-tatsaechlich aufgerufen zu haben. Der Nutzer glaubt, es sei erledigt -- ist es
-aber nicht.
+A small, self-contained mechanism against one specific weakness of
+tool-calling LLMs: the model sometimes claims that an action has already been
+carried out ("Der Timer ist gestellt" - the timer is set, "Die Mail wurde
+gesendet" - the mail was sent, "Der PC fährt jetzt herunter" - the PC is
+shutting down), WITHOUT having actually called the responsible tool in this
+turn. The user believes it is done, but it is not.
 
-Idee: Nach jeder Modell-Antwort wird der Text gegen eine Liste bekannter
-Behauptungsformen geprueft. Jede Regel verlangt, dass ein bestimmtes Werkzeug
-in derselben Runde wirklich aufgerufen wurde (`called_names`). Fehlt der Beleg,
-gilt die Behauptung als unbelegt und wird korrigiert bzw. der Satz entfernt.
+Idea: after every model reply, the text is checked against a list of known
+claim patterns. Each rule requires that a specific tool was really called in
+the same turn (`called_names`). If the proof is missing, the claim counts as
+unsupported and is corrected, or the sentence is removed.
 
-Feinheiten, die in der Praxis noetig wurden:
-- `_bidir`: Treffer unabhaengig von der Wortstellung ("X geloescht" wie
-  "geloescht ... X").
-- Wort-Grenzen (`\\b`) ums Verb: verhindert Fehltreffer in flektierten Formen
-  ("gespeicherten" als Adjektiv statt abgeschlossener Aktion).
-- `_HEDGE_RE`: eine Zukunfts-/Bedingungsform in der Naehe ("wird gespeichert,
-  sobald ...") ist eine korrekte Ankuendigung, keine Luege -> kein Alarm.
-  Ausnahme: "wird jetzt/gerade ..." ist eine Jetzt-Behauptung, kein Hedge.
-- `required=set()`: fuer Aktionen, fuer die es gar kein Werkzeug gibt (z.B.
-  Mail senden) -- jede Erledigt-Behauptung ist dann automatisch unbelegt.
+Details that turned out to be necessary in practice:
+- `_bidir`: match independent of word order ("X gelöscht" as well as
+  "gelöscht ... X", i.e. "X deleted" / "deleted ... X").
+- Word boundaries (`\\b`) around the verb: prevent false hits on inflected
+  forms ("gespeicherten" as an adjective instead of a completed action).
+- `_HEDGE_RE`: a future/conditional form nearby ("wird gespeichert, sobald
+  ..." - will be saved as soon as ...) is a correct announcement, not a lie,
+  so no alarm. Exception: "wird jetzt/gerade ..." (is being done right now)
+  is a claim about the present, not a hedge.
+- `required=set()`: for actions that have no tool at all (e.g. sending mail),
+  every "done" claim is automatically unsupported.
 
-Teil des privaten Projekts "JARVIS" (lokaler KI-Assistent auf eigener
-Hardware). Hier als eigenstaendiges, lauffaehiges Modul herausgeloest.
+Part of the private project "JARVIS" (local AI assistant on own hardware).
+Extracted here as a self-contained, runnable module.
 """
 
 import re
 
 
 def _bidir(noun, verb):
-    """Treffer unabhaengig von der Wortstellung. \\b ums Verb verhindert
-    Treffer in flektierten Formen (Adjektiv statt abgeschlossener Aktion)."""
+    """Match independent of word order. `\\b` around the verb prevents matches
+    in inflected forms (adjective instead of a completed action)."""
     verb_b = rf"\b{verb}\b"
     return rf"(?:{verb_b}.{{0,40}}{noun}|{noun}.{{0,40}}{verb_b})"
 
 
-# Jede Regel: (Muster, Menge der Werkzeuge, die den Anspruch belegen wuerden).
-# Leere Menge = es gibt kein Werkzeug dafuer -> Behauptung ist immer unbelegt.
+# Each rule: (pattern, set of tools whose call would support the claim).
+# Empty set = there is no tool for it -> the claim is always unsupported.
 _CLAIM_RULES = [
     (_bidir(r"(einkaufs?liste|liste)", r"(hinzu\s?gef(ü|ue)gt|gestrichen|entfernt|gel(ö|oe)scht)"), {"einkauf_hinzufuegen", "einkauf_entfernen"}),
     (_bidir(r"timer", r"(gesetzt|gestellt|eingestellt|erstellt)"), {"timer_setzen"}),
@@ -60,8 +61,8 @@ _CLAIM_RULES = [
 ]
 _CLAIM_RE = [(re.compile(p, re.IGNORECASE), req) for p, req in _CLAIM_RULES]
 
-# Zukunfts-/Bedingungsform nahe dem Treffer = korrekte Ankuendigung, kein Alarm.
-# "wird jetzt/gerade ..." ist aber eine Jetzt-Behauptung und bleibt ein Treffer.
+# Future/conditional form near the match = a correct announcement, no alarm.
+# "wird jetzt/gerade ..." (is being done right now) is a claim about the present and still counts as a hit.
 _HEDGE_RE = re.compile(
     r"\b(wird(?!\s+(jetzt|gerade|soeben))|werde|w(ü|ue)rde|sollte|wenn|sobald|falls|kann|k(ö|oe)nnte|noch nicht|erst (dann|wenn|sobald))\b",
     re.IGNORECASE,
@@ -69,9 +70,9 @@ _HEDGE_RE = re.compile(
 
 
 def find_claim_violation(text, called_names):
-    """Gibt (Treffer, erlaubte_Werkzeugnamen) zurueck, wenn der Text eine Aktion
-    als erledigt behauptet, fuer die in dieser Runde kein passendes Werkzeug
-    aufgerufen wurde (`called_names`). Sonst None."""
+    """Return (match, allowed_tool_names) if the text claims an action as done
+    for which no matching tool was called in this turn (`called_names`).
+    Otherwise None."""
     if not text or not text.strip():
         return None
     for rx, required in _CLAIM_RE:
@@ -86,23 +87,23 @@ def find_claim_violation(text, called_names):
 
 
 def strip_claim_sentence(text, snippet):
-    """Entfernt den Satz, der die unbelegte Behauptung enthaelt."""
+    """Remove the sentence that contains the unsupported claim."""
     parts = re.split(r"(?<=[.!?])\s+", text)
     kept = [p for p in parts if snippet.lower() not in p.lower()]
     return " ".join(kept).strip()
 
 
 if __name__ == "__main__":
-    # Kleine Demo: erledigte-Behauptung ohne Werkzeugaufruf vs. legitime Faelle.
-    faelle = [
-        ("Der Timer ist gestellt.", set(), "LUEGE erwartet (kein timer_setzen)"),
-        ("Der Timer ist gestellt.", {"timer_setzen"}, "ok (Werkzeug belegt)"),
-        ("Ich stelle den Timer, sobald du es bestaetigst.", set(), "ok (Ankuendigung/Hedge)"),
-        ("Die Mail wurde gesendet.", set(), "LUEGE erwartet (kein Mail-Werkzeug ueberhaupt)"),
-        ("Der Gaming-PC wird jetzt heruntergefahren.", set(), "LUEGE erwartet (Jetzt-Behauptung)"),
-        ("Der PC sollte sich gleich ausschalten.", set(), "ok (Hedge 'sollte')"),
+    # Small demo: "done" claim without a tool call vs. legitimate cases.
+    cases = [
+        ("Der Timer ist gestellt.", set(), "LIE expected (no timer_setzen call)"),
+        ("Der Timer ist gestellt.", {"timer_setzen"}, "ok (tool call proves it)"),
+        ("Ich stelle den Timer, sobald du es bestätigst.", set(), "ok (announcement/hedge)"),
+        ("Die Mail wurde gesendet.", set(), "LIE expected (there is no mail tool at all)"),
+        ("Der Gaming-PC wird jetzt heruntergefahren.", set(), "LIE expected (claim about the present)"),
+        ("Der PC sollte sich gleich ausschalten.", set(), "ok (hedge 'sollte' = should)"),
     ]
-    for text, called, erwartung in faelle:
-        treffer = find_claim_violation(text, called)
-        status = f"VERSTOSS: {treffer[0]!r}" if treffer else "sauber"
-        print(f"[{status:28}] {text!r}  -> {erwartung}")
+    for text, called, expected in cases:
+        hit = find_claim_violation(text, called)
+        status = f"VIOLATION: {hit[0]!r}" if hit else "clean"
+        print(f"[{status:28}] {text!r}  -> {expected}")

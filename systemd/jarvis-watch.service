@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Waechter (Monitoring + Morgen-Briefing)
+Description=JARVIS watchdog (monitoring + morning briefing)
 After=network-online.target docker.service
 
 [Service]

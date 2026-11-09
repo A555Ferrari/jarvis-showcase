@@ -1,11 +1,11 @@
-"""JARVIS Agent-Schleife (Tool-Calling), Schritt 4.
+"""JARVIS agent loop (tool calling), step 4.
 
-Das grosse Modell auf dem Gaming-PC entscheidet selbst, welches Werkzeug es braucht (Wetter, Websuche,
-Dokumente lesen, Dateien erstellen/aendern). Dieses Modul kennt nur die Schleife und die Werkzeug-
-Beschreibungen. Die Werkzeuge selbst liegen im Proxy (routing_proxy.py) und werden als `execute` uebergeben.
+The large model on the gaming PC decides by itself which tool it needs (weather, web search,
+read documents, create/change files). This module only knows the loop and the tool
+descriptions. The tools themselves live in the proxy (routing_proxy.py) and are passed in as `execute`.
 
-agent_run() ist ein Async-Generator und liefert Zeilen im Ollama-NDJSON-Format, wie stream_large().
-Rueckbau: Datei /var/lib/jarvis/agent_mode mit "off" (siehe routing_proxy.agent_mode_on).
+agent_run() is an async generator and yields lines in Ollama NDJSON format, like stream_large().
+Rollback: file /var/lib/jarvis/agent_mode containing "off" (see routing_proxy.agent_mode_on).
 """
 import asyncio
 import json
@@ -22,7 +22,7 @@ TOOLS = [
         "description": ("Live weather and forecast (Open-Meteo) for a place. ALWAYS use this for any weather, "
                         "temperature, rain, wind or forecast question. Without 'ort' the user's home place is used."),
         "parameters": {"type": "object", "properties": {
-            "ort": {"type": "string", "description": "Place name, e.g. 'Baden'. Leave empty for the home place."},
+            "ort": {"type": "string", "description": "Place name, e.g. 'Zurich'. Leave empty for the home place."},
             "tage": {"type": "string", "description": "Which day(s), in the user's words, e.g. 'morgen', 'Wochenende'. Optional."},
         }}}},
     {"type": "function", "function": {
@@ -250,7 +250,7 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {}}}},
 ]
 
-# Kleine Werkzeuge, Spiele, Monitoring (18.10.2026): Beschreibungen in den eigenen Modulen
+# Small tools, games, monitoring (18.10.2026): descriptions live in their own modules
 import jarvis_tools_small as _jts, jarvis_games as _jgm, jarvis_metrics as _jmx
 TOOLS += _jts.TOOLS + [_jgm.TOOL, _jmx.TOOL]
 
@@ -265,13 +265,13 @@ def _done(model):
 
 
 # --- Wahrheits-Waechter -----------------------------------------------------
-# Erkennt, wenn das Modell behauptet, eine Aktion sei bereits ausgefuehrt worden,
-# obwohl in diesem Gespraech kein passendes Werkzeug dafuer aufgerufen wurde.
-# required=set() heisst: es gibt ueberhaupt kein Werkzeug dafuer (z.B. Mail senden) -> immer eine Luege.
+# Detects when the model claims that an action has already been carried out,
+# although no matching tool was called in this conversation.
+# required=set() means: there is no tool for it at all (e.g. sending mail) -> always a lie.
 def _bidir(noun, verb):
-    """Treffer unabhaengig von der Wortstellung: "X geloescht" und "geloescht ... X" beide erkennen.
-    \b um das Verb: verhindert Treffer in flektierten Formen wie "gespeicherten" (Adjektiv statt
-    abgeschlossene Aktion), die sonst als Substring von "gespeichert" mitgematcht wuerden."""
+    """Match independent of word order: detect both "X geloescht" and "geloescht ... X" (X deleted).
+    Word boundaries around the verb prevent matches in inflected forms such as "gespeicherten" (adjective instead of a
+    completed action), which would otherwise match as a substring of "gespeichert"."""
     verb_b = rf"\b{verb}\b"
     return rf"(?:{verb_b}.{{0,40}}{noun}|{noun}.{{0,40}}{verb_b})"
 
@@ -285,42 +285,42 @@ _CLAIM_RULES = [
     (_bidir(r"(wissen(sbasis)?|dokument)", r"(gespeichert|hinzugef(ü|ue)gt|entfernt|gel(ö|oe)scht)"), {"wissen_hinzufuegen", "wissen_loeschen"}),
     (_bidir(r"notiz", r"(gespeichert|gemacht|notiert)"), {"notiz_speichern"}),
     (_bidir(r"(mail|e-?mail)", r"(gesendet|verschickt|geschickt|beantwortet)"), set()),
-    (_bidir(r"(shutdown|herunterfahr\w*)(-befehl)?", r"(gesendet|abgeschickt|ausgel(ö|oe)st)"), {"pc_ausschalten"}),   # 11.10.: "Shutdown-Befehl gesendet" ohne Werkzeug
-    (_bidir(r"befehl", r"(ausgef(ü|ue)hrt|abgesetzt(\s+worden)?)"), {"pc_ausschalten"}),   # 11.10.: "Befehl ... ausgefuehrt"/"ist abgesetzt worden" ohne Werkzeug
+    (_bidir(r"(shutdown|herunterfahr\w*)(-befehl)?", r"(gesendet|abgeschickt|ausgel(ö|oe)st)"), {"pc_ausschalten"}),   # 11.10.: "shutdown command sent" without a tool
+    (_bidir(r"befehl", r"(ausgef(ü|ue)hrt|abgesetzt(\s+worden)?)"), {"pc_ausschalten"}),   # 11.10.: "command ... executed" / "has been dispatched" without a tool
     (_bidir(r"pc", r"(ausgeschaltet|ausgemacht|herunter\s?gefahren|shutdown|f(ä|ae)hrt\s+(\w+\s+)?herunter|sich\s+(\w+\s+){0,2}ausschalten)"), {"pc_ausschalten"}),
     (_bidir(r"bild", r"(erzeugt|erstellt|generiert)"), {"bild_erzeugen"}),
     (_bidir(r"datei", r"(erstellt|erzeugt|ge(ä|ae)ndert|angepasst|gespeichert)"), {"datei_erstellen", "datei_aendern"}),
-    (_bidir(r"recherche", r"(fertig|abgeschlossen|erledigt)"), set()),  # Recherche-Ergebnis kommt nur per Push, nie synchron
-    (_bidir(r"recherche", r"(gestartet|laeuft|läuft|angestossen|angesto(ss|ß)en)"), {"recherche_start"}),  # "gestartet" ohne echten Tool-Call
+    (_bidir(r"recherche", r"(fertig|abgeschlossen|erledigt)"), set()),  # research results only arrive by push, never synchronously
+    (_bidir(r"recherche", r"(gestartet|laeuft|läuft|angestossen|angesto(ss|ß)en)"), {"recherche_start"}),  # "started" without a real tool call
 ]
 _CLAIM_RE = [(re.compile(p, re.IGNORECASE), req) for p, req in _CLAIM_RULES]
-# Zukunfts-/Bedingungsform in der Naehe des Treffers heisst: keine abgeschlossene Behauptung, sondern eine
-# (richtige) Ankuendigung ("wird erst gespeichert, wenn ..."). Verhindert Fehlalarme bei solchen Saetzen.
-_HEDGE_RE = re.compile(r"\b(wird(?!\s+(jetzt|gerade|soeben))|werde|w(ü|ue)rde|sollte|wenn|sobald|falls|kann|k(ö|oe)nnte|noch nicht|erst (dann|wenn|sobald))\b", re.IGNORECASE)  # 11.10.: "wird jetzt/gerade" ist eine Jetzt-Behauptung, kein echter Hedge
+# A future/conditional form near the match means: not a completed claim but a
+# (correct) announcement ("will only be saved when ..."). Prevents false alarms for such sentences.
+_HEDGE_RE = re.compile(r"\b(wird(?!\s+(jetzt|gerade|soeben))|werde|w(ü|ue)rde|sollte|wenn|sobald|falls|kann|k(ö|oe)nnte|noch nicht|erst (dann|wenn|sobald))\b", re.IGNORECASE)  # 11.10.: "wird jetzt/gerade" (is being done right now) is a claim about the present, not a real hedge
 
 
 def _find_claim_violation(text, called_names):
-    """Gibt (Treffer, erlaubte_Werkzeugnamen) zurueck, wenn der Text eine Aktion als erledigt
-    behauptet, fuer die kein passendes Werkzeug in diesem Gespraech aufgerufen wurde. Sonst None.
-    erlaubte_Werkzeugnamen kann leer sein (z.B. Mail senden -- es gibt gar kein Werkzeug dafuer)."""
+    """Returns (match, allowed_tool_names) if the text claims an action as done
+    for which no matching tool was called in this conversation. Otherwise None.
+    allowed_tool_names can be empty (e.g. sending mail -- there is no tool for it at all)."""
     if not text or not text.strip():
         return None
     for rx, required in _CLAIM_RE:
         m = rx.search(text)
         if not m or (required & called_names):
             continue
-        window = text[max(0, m.start() - 40):m.end() + 40]   # Hedge-Wort kann vor ODER nach dem Treffer stehen ("gespeichert, sobald...")
+        window = text[max(0, m.start() - 40):m.end() + 40]   # the hedge word can come before OR after the match ("gespeichert, sobald..." = saved, as soon as...)
         if required == {"pc_ausschalten"} and (called_names & {"monitoring", "system_status"}) \
                 and not re.search(r"\b(habe|hab|hatte|wurde|werde|ich)\b", window, re.I):
-            continue      # 18.10.: Zustand aus Status-/Monitoring-Daten ("der PC war ausgeschaltet"), keine behauptete Aktion
+            continue      # 18.10.: state from status/monitoring data ("the PC was switched off"), not a claimed action
         if _HEDGE_RE.search(window) and not re.search(r"gesendet|abgeschickt|ausgel(ö|oe)st", m.group(0), re.I):
-            continue      # "gesendet" ist eine abgeschlossene Aktion; ein "sollte" daneben ("sollte sich ausschalten") entschaerft sie nicht
+            continue      # "gesendet" (sent) is a completed action; a "sollte" (should) next to it ("sollte sich ausschalten") does not defuse it
         return m.group(0), required
     return None
 
 
 def _strip_claim_sentence(text, snippet):
-    """Entfernt den Satz, der die unbelegte Behauptung enthaelt (zweiter Versuch, Modell hat nicht reagiert)."""
+    """Removes the sentence that contains the unsupported claim (second attempt, the model did not react)."""
     parts = re.split(r"(?<=[.!?])\s+", text)
     kept = [p for p in parts if snippet.lower() not in p.lower()]
     out = " ".join(kept).strip()
@@ -329,8 +329,8 @@ def _strip_claim_sentence(text, snippet):
 
 
 async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_ROUNDS, log=print, must_tool=False, tools=None):
-    """messages: fertige Nachrichten (System-Prompt zuerst). execute(name, args) -> {"text", "suffix"?, "final"?}.
-    Wirft, wenn Ollama nicht antwortet (der Aufrufer faellt dann auf den alten Weg zurueck)."""
+    """messages: finished messages (system prompt first). execute(name, args) -> {"text", "suffix"?, "final"?}.
+    Raises if Ollama does not answer (the caller then falls back to the old path)."""
     msgs = list(messages)
     suffix, seen, answer, finals = [], set(), "", []
     called_names = set()
@@ -342,11 +342,11 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
         payload = {"model": model, "messages": msgs, "stream": True, "think": False,
                    "options": {"num_ctx": num_ctx}}
         if rnd < max_rounds - 1:
-            payload["tools"] = (tools if tools is not None else TOOLS)          # letzte Runde ohne Werkzeuge: das Modell muss antworten
+            payload["tools"] = (tools if tools is not None else TOOLS)          # last round without tools: the model has to answer
         content, calls = "", []
         for attempt in range(2):
-            # Der Ollama-Runner auf dem PC stuerzt gelegentlich ab (std::bad_alloc) und startet selbst neu: einmal wiederholen,
-            # solange in dieser Runde noch nichts an den Client ging.
+            # The Ollama runner on the PC occasionally crashes (std::bad_alloc) and restarts by itself: retry once,
+            # as long as nothing has gone to the client in this round yet.
             try:
                 async with httpx.AsyncClient(timeout=300.0) as c:
                     async with c.stream("POST", f"{base}/api/chat", json=payload) as r:
@@ -379,9 +379,9 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
             if content.strip():
                 log(f"[JARVIS] Wahrheits-Waechter: Vorgriff-Text vor Werkzeugaufruf unterdrueckt: {content.strip()[:200]!r}")
         elif content.strip() and not (not calls and must_tool and rnd == 0 and not nudged):
-            # Wenn diese Runde gleich per "Live-Frage ohne Werkzeug" verworfen und neu angefordert wird (unten),
-            # darf ihr Text NICHT erst noch in answer/yield landen -- sonst klebt die verworfene Antwort an der
-            # echten Antwort der naechsten Runde (echter Bug, gefunden 11.10. bei Task #42 ueber erinnerung_snooze).
+            # If this round is about to be discarded and requested again ("live question without tool", below),
+            # its text must NOT end up in answer/yield first -- otherwise the discarded answer sticks to the
+            # real answer of the next round (real bug, found 11.10. with task #42 about erinnerung_snooze).
             _cv = _find_claim_violation(content, called_names)
             violation, violation_tools = _cv if _cv else (None, set())
             if violation and not claim_retry:
@@ -403,7 +403,7 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
                 answer += release
                 yield _chunk(model, release)
         if not calls and must_tool and rnd == 0 and not nudged and content.strip():
-            # Live-Daten (Mail, Kalender, Wetter, Status) ohne Werkzeugaufruf beantwortet (vermutlich aus dem Verlauf): einmal erzwingen
+            # Live data (mail, calendar, weather, status) answered without a tool call (probably from the history): force once
             nudged = True
             log("[JARVIS] Agent: Live-Frage ohne Werkzeug beantwortet -> Werkzeugaufruf erzwungen")
             for k_ in range(len(msgs) - 1, -1, -1):
@@ -412,7 +412,7 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
                     break
             continue
         if not calls and rnd > 0 and not finals and not content.strip() and not answer.strip() and not empty_retry:
-            # Nach Werkzeugaufrufen leer geantwortet: einmal um eine Antwort bitten
+            # Empty answer after tool calls: ask for an answer once
             empty_retry = True
             log("[JARVIS] Agent: leere Antwort nach Werkzeug -> Antwort angefordert")
             msgs.append({"role": "user", "content": "(Answer the user now in one or two sentences, based on the tool results above. Do not comment on this note.)"})
@@ -430,7 +430,7 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
                 except Exception:
                     args = {}
             key = (name, json.dumps(args, sort_keys=True, ensure_ascii=False))
-            yield _chunk(model, "")           # Lebenszeichen waehrend das Werkzeug laeuft
+            yield _chunk(model, "")           # sign of life while the tool is running
             if key in seen:
                 res = {"text": "This exact call was already made; use its result and answer now."}
             else:
@@ -445,8 +445,8 @@ async def agent_run(messages, execute, *, base, model, num_ctx, max_rounds=MAX_R
             if res.get("suffix"):
                 suffix.append((res["suffix"], bool(res.get("cond"))))
             if res.get("final") is not None:
-                # Datei fertig: Text/Karte merken, die Schleife laeuft weiter, damit weitere Teile der Anfrage (Status, Wetter ...)
-                # noch erledigt werden. Am Ende wird die Dateimeldung angehaengt.
+                # File done: remember text/card, the loop keeps running so that further parts of the request (status, weather ...)
+                # still get handled. At the end the file message is appended.
                 finals.append(res["final"])
                 msgs.append({"role": "tool", "tool_name": name, "content":
                              "The result (file or confirmation question) is delivered to the user automatically; do NOT describe it or repeat it, and never claim a pending action is already done. "

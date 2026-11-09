@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-JARVIS Bildwerkzeug: Bilder auf dem Gaming-PC mit ComfyUI + Z-Image Turbo.
-ComfyUI laeuft nur bei Bedarf (wird per SSH gestartet) und ist ueber den SSH-Tunnel (jarvis-stt-tunnel.service,
-127.0.0.1:18188 -> PC 127.0.0.1:8188) erreichbar. Vor dem Bild gibt JARVIS den Grafikspeicher des Chat-Modells frei, danach das Bildmodell.
+JARVIS image tool: images on the gaming PC with ComfyUI + Z-Image Turbo.
+ComfyUI only runs on demand (started over SSH) and is reachable through the SSH tunnel (jarvis-stt-tunnel.service,
+127.0.0.1:18188 -> PC 127.0.0.1:8188). Before the image, JARVIS frees the GPU memory of the chat model, afterwards the image model.
 """
 import asyncio
 import json
@@ -23,7 +23,7 @@ START_CMD = r"powershell -NoProfile -ExecutionPolicy Bypass -File D:\JARVIS\star
 SIZES = {"square": (1024, 1024), "portrait": (832, 1216), "landscape": (1216, 832), "wide": (1344, 768)}
 _LOCK = asyncio.Lock()
 
-# Inhalte, die nie erzeugt werden (zusaetzlich zur Anweisung an das Modell)
+# content that is never generated (in addition to the instruction to the model)
 BLOCK_RE = re.compile(
     r"\b(nude|naked|nsfw|porn\w*|sex|sexy|sexual\w*|sexuell\w*|erotic\w*|topless|lingerie|fetish|genital\w*|nackt\w*|erotik\w*|akt\b)\b", re.I)
 MINOR_RE = re.compile(r"\b(child\w*|kid\b|kids\b|boy\b|girl\b|minor\w*|teen\w*|toddler|baby|kind\b|kinder\w*|m[aä]dchen|junge\b|schoolgirl|schoolboy)\b", re.I)
@@ -42,13 +42,13 @@ def workflow(prompt: str, w: int, h: int, seed: int) -> dict:
             "model": ["11", 0], "positive": ["27", 0], "negative": ["33", 0], "latent_image": ["13", 0],
             "seed": seed, "steps": 8, "cfg": 1, "sampler_name": "res_multistep", "scheduler": "simple", "denoise": 1}},
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["29", 0]}},
-        "9": {"class_type": "PreviewImage", "inputs": {"images": ["8", 0]}},      # temp-Ordner, wird beim Start von ComfyUI geleert
+        "9": {"class_type": "PreviewImage", "inputs": {"images": ["8", 0]}},      # temp folder, emptied when ComfyUI starts
     }
 
 
 def check_prompt(prompt: str) -> str:
     return ""
-    """-> '' wenn ok, sonst Grund."""
+    """-> '' if ok, otherwise the reason."""
     if BLOCK_RE.search(prompt):
         return "sexual or explicit content"
     if MINOR_RE.search(prompt) and re.search(r"\b(sexy|seductive|bikini|swimsuit|underwear|nude|naked)\b", prompt, re.I):
@@ -82,7 +82,7 @@ async def ensure_running(wait_s: int = 150) -> bool:
 
 
 async def free_chat_model(base: str, model: str):
-    """Chat-Modell aus dem Grafikspeicher werfen (laedt bei der naechsten Frage von selbst wieder)."""
+    """Evict the chat model from GPU memory (it reloads by itself on the next question)."""
     try:
         async with httpx.AsyncClient(timeout=20.0) as c:
             await c.post(f"{base}/api/generate", json={"model": model, "keep_alive": 0, "prompt": ""})
@@ -105,7 +105,7 @@ def _slug(text: str) -> str:
 
 
 async def generate(prompt: str, fmt: str, base: str, model: str):
-    """-> (relativer Pfad 'id/name.png', Fehlertext oder ''). Ein Bild nach dem anderen."""
+    """-> (relative path 'id/name.png', error text or ''). One image after the other."""
     w, h = SIZES.get(fmt, SIZES["square"])
     async with _LOCK:
         if not await ensure_running():

@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Firewall (Dienste nur Tailscale/lokal, nicht LAN)
+Description=JARVIS firewall (services only via Tailscale/local, not LAN)
 After=network.target docker.service
 
 [Service]

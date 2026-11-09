@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Kleine Werkzeuge ohne Modell (18.10.2026): Rechnen, Zufall (Zahl, Wuerfel, Muenze, Auswahl), Passwort/PIN,
-QR-Code (Text, Link, WLAN), Einheiten und Waehrung umrechnen.
+"""Small tools without a model (18.10.2026): calculating, randomness (number, dice, coin, choice), password/PIN,
+QR code (text, link, Wi-Fi), unit and currency conversion.
 
-Alles wird im Code berechnet, nie vom Modell geschaetzt.
-- direct(text, en): erkennt eindeutige Kurzbefehle ("wuerfle", "17*23", "100 CHF in EUR", "QR-Code fuer ...")
-  und antwortet sofort ohne Modell, also auch wenn der Gaming-PC aus ist.
-- tool(name, args, en): dieselben Funktionen als Agent-Werkzeuge fuer freie Formulierungen (jarvis_agent.TOOLS).
-Passwoerter/PINs/WLAN-Passwoerter: nie geloggt; redact() entfernt sie aus dem gespeicherten Gespraechsverlauf.
+Everything is computed in code, never estimated by the model.
+- direct(text, en): recognises unambiguous short commands ("würfle", "17*23", "100 CHF in EUR", "QR-Code für ...")
+  and answers immediately without a model, so also when the gaming PC is off.
+- tool(name, args, en): the same functions as agent tools for free-form phrasing (jarvis_agent.TOOLS).
+Passwords/PINs/Wi-Fi passwords: never logged; redact() removes them from the stored conversation history.
 """
 import ast, json, math, operator, os, re, secrets, string, threading, time, urllib.request
 
-# ── Geheimnisse aus dem Verlauf halten ───────────────────────────────────────
+# ── Keeping secrets out of the history ────────────────────────────────────────
 _SECRETS = {}                      # wert -> zeitpunkt
 _SLOCK = threading.Lock()
 
@@ -24,7 +24,7 @@ def _remember_secret(s: str):
 
 
 def redact(text: str) -> str:
-    """Kuerzlich erzeugte Passwoerter/PINs im Text ersetzen (fuer den gespeicherten Verlauf)."""
+    """Replace recently generated passwords/PINs in the text (for the stored history)."""
     if not text:
         return text
     with _SLOCK:
@@ -224,7 +224,7 @@ def wifi_payload(ssid: str, pw: str = "", enc: str = "WPA", hidden: bool = False
 
 
 def qr_png(content: str, name: str = "qr-code") -> str:
-    """-> relativer Pfad unter jarvis_files.FILES_DIR (fuer [[file:...]])."""
+    """-> relative path below jarvis_files.FILES_DIR (for [[file:...]])."""
     import qrcode
     import jarvis_files as jf
     content = str(content)
@@ -383,7 +383,7 @@ def convert(value, src: str, dst: str, en=False) -> dict:
     raise ValueError("Einheiten unbekannt oder nicht kompatibel")
 
 
-# ── Direkt-Erkennung (ohne Modell) ───────────────────────────────────────────
+# ── Direct recognition (without a model) ──────────────────────────────────────
 _NUMW = {"ein": 1, "einen": 1, "eine": 1, "einem": 1, "zwei": 2, "drei": 3, "vier": 4, "fünf": 5, "fuenf": 5,
          "sechs": 6, "sieben": 7, "acht": 8, "neun": 9, "zehn": 10, "a": 1, "an": 1, "one": 1, "two": 2,
          "three": 3, "four": 4, "five": 5, "six": 6, "ten": 10}
@@ -432,7 +432,7 @@ def direct(text: str, en: bool = False):
                     else "\n\n(Lokal mit einem kryptografischen Zufallsgenerator erzeugt und nicht im Verlauf gespeichert.)")
         return _rep(txt, en, hist=redact(txt), kind="passwort")
 
-    # QR-Code (WLAN laeuft ueber das Agent-Werkzeug, dort sind Name/Passwort sauber getrennt)
+    # QR code (Wi-Fi goes through the agent tool, where name/password are cleanly separated)
     if re.search(r"\bqr\b|\bqr[\s-]?codes?\b", t) and not re.search(r"\b(wlan|wifi|wi-fi)\b", t):
         m = re.search(r"\bqr[\s-]?(?:code)?s?\b\s*(?:mit dem inhalt|mit|für|fuer|von|zu|zum|zur|for|of|with|containing|:)?\s*[:\-]?\s*(.+)$", t0, re.I)
         content = (m.group(1).strip() if m else "").strip(" \"'«»„“”")
@@ -444,12 +444,12 @@ def direct(text: str, en: bool = False):
             return _rep(txt, en, suffix=f"\n\n[[file:{rel}|QR-Code|png]]", kind="qr")
         return None
 
-    # Muenze
+    # coin
     if len(t) < 70 and re.search(r"m(?:ü|ue|u)nz(?:e|wurf|en)|kopf oder zahl|flip a coin|coin ?flip|toss a coin|heads or tails", t):
         r = coin(en)
         return _rep((f"Coin toss: {r}." if en else f"Münzwurf: {r}."), en, kind="zufall")
 
-    # Wuerfel
+    # dice
     dm = re.search(r"\b(\d{1,2})?\s*[dw](\d{1,4})\b", tc) if re.search(r"w(?:ü|ue|u)rf|\broll\b|\bdice\b|\bdie\b", t) else None
     if len(t) < 70 and (re.match(r"(?:wirf|werf|w(?:ü|ue|u)rf(?:le|el|eln|elt)?|roll|throw)\b", tc) or (dm and re.search(r"w(?:ü|ue|u)rf|\broll\b", t))):
         n, sides = 1, 6
@@ -490,7 +490,7 @@ def direct(text: str, en: bool = False):
         lo, hi = min(a, b), max(a, b)
         return _rep((f"Random number between {lo} and {hi}: {r}." if en else f"Zufallszahl zwischen {lo} und {hi}: {r}."), en, kind="zufall")
 
-    # Zufaellig auswaehlen
+    # random choice
     m = re.match(r"(?:w(?:ä|ae)hle?|w(?:ä|ae)hl|entscheide(?:\s+dich)?|such(?:e)?\s+(?:dir\s+)?(?:eins|einen|eine|etwas)\s+aus|pick|choose|decide)\b(.*)$", tc)
     if m and len(t) < 160 and re.search(r"zuf(?:ä|ae)llig|random|zwischen|between|\baus\b|\bfrom\b|:", m.group(1)):
         rest = m.group(1)
@@ -541,7 +541,7 @@ def direct(text: str, en: bool = False):
     return None
 
 
-# ── Agent-Werkzeuge ──────────────────────────────────────────────────────────
+# ── Agent tools ───────────────────────────────────────────────────────────────
 TOOLS = [
     {"type": "function", "function": {
         "name": "rechnen",
@@ -594,7 +594,7 @@ NAMES = {t["function"]["name"] for t in TOOLS}
 
 
 def tool(name: str, args: dict, en: bool = False) -> dict:
-    """Agent-Werkzeug ausfuehren -> {"text"} / {"text","suffix"} / {"final"} (Format wie routing_proxy.execute)."""
+    """Run an agent tool -> {"text"} / {"text","suffix"} / {"final"} (same format as routing_proxy.execute)."""
     args = args or {}
     try:
         if name == "rechnen":

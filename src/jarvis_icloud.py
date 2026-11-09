@@ -1,5 +1,5 @@
-"""iCloud-Anbindung fuer JARVIS: Kalender (CalDAV) und Mail (IMAP). Lesen frei; Schreiben/Loeschen ruft nur der Proxy nach Bestaetigung auf.
-Zugangsdaten: App-spezifisches Passwort in /root/.jarvis_icloud_pw (chmod 600), nie im Log oder Chat."""
+"""iCloud integration for JARVIS: calendar (CalDAV) and mail (IMAP). Reading is free; writing/deleting is only called by the proxy after confirmation.
+Credentials: app-specific password in /root/.jarvis_icloud_pw (chmod 600), never in the log or chat."""
 import imaplib, email, re, datetime as dt
 from email.header import decode_header, make_header
 from zoneinfo import ZoneInfo
@@ -34,7 +34,7 @@ def _event_calendars(pr):
 
 
 def _dt_local(v):
-    """date/datetime aus iCal -> (datetime in Zuerich, ganztaegig?)"""
+    """date/datetime from iCal -> (datetime in Zurich time, all-day?)"""
     if isinstance(v, dt.datetime):
         if v.tzinfo is None:
             return v.replace(tzinfo=TZ), False
@@ -54,7 +54,7 @@ def parse_when(s):
 
 
 def events_between(start, end):
-    """-> Liste von Dicts {title, start, end, allday, location, calendar, uid}, sortiert."""
+    """-> list of dicts {title, start, end, allday, location, calendar, uid}, sorted."""
     pr = _principal()
     res = []
     for cal in _event_calendars(pr):
@@ -98,7 +98,7 @@ def _esc(t):
 
 
 def create_event(title, start, end, location="", calendar=None):
-    """Termin anlegen. start/end: datetime (mit Zeitzone) oder date (ganztaegig). -> Kalendername."""
+    """Create an event. start/end: datetime (with time zone) or date (all-day). -> calendar name."""
     import uuid
     pr = _principal()
     cals = _event_calendars(pr)
@@ -132,7 +132,7 @@ def delete_event(uid):
     return False
 
 
-# ── Mail (mehrere Konten, nur lesen) ──────────────────────────────────────────
+# ── Mail (several accounts, read-only) ────────────────────────────────────────
 MAIL_CONF = "/var/lib/jarvis/mail_accounts.json"     # {"gmail1": {"user": "...@gmail.com", "host": "imap.gmail.com"}} ; Passwort: /root/.jarvis_mail_<name>_pw
 
 
@@ -204,7 +204,7 @@ def _list_one(name, n, unread_only, query, since_days):
 
 
 def label(name):
-    """Anzeigename eines Kontos (aus mail_accounts.json 'label', sonst Schluessel)."""
+    """Display name of an account (from mail_accounts.json 'label', otherwise the key)."""
     try:
         import json
         v = json.load(open(MAIL_CONF)).get(name) or {}
@@ -222,7 +222,7 @@ def _par(fn, names):
 
 
 def unread_counts(days=14):
-    """Zahl ungelesener Mails der letzten  Tage im Posteingang je Konto: {name: int | None}."""
+    """Number of unread mails of the last  days in the inbox per account: {name: int | None}."""
     def one(name):
         try:
             m = _imap(name)
@@ -252,7 +252,7 @@ def unread_line():
 
 
 def mail_list(n=10, unread_only=False, query=None, since_days=None, account=None):
-    """Neueste Mails ueber alle Konten (oder eins), Konten parallel. Fehler eines Kontos als {'fehler': ...}."""
+    """Newest mails across all accounts (or one), accounts in parallel. An account's error is returned as {'fehler': ...}."""
     names = [account] if account else list(accounts())
 
     def one(name):
@@ -272,7 +272,7 @@ def mail_read(mid, maxc=4000):
     m = _imap(name)
     try:
         m.select("INBOX", readonly=True)
-        typ, d = m.fetch(num.encode(), "(BODY.PEEK[])")        # PEEK: Mail wird nicht als gelesen markiert
+        typ, d = m.fetch(num.encode(), "(BODY.PEEK[])")        # PEEK: the mail is not marked as read
         raw = next((x[1] for x in d if isinstance(x, tuple)), None)
         if not raw:
             return None

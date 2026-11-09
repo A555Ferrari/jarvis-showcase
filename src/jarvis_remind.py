@@ -1,4 +1,4 @@
-"""Erinnerungen: JARVIS meldet sich per Push (ntfy) zur genannten Zeit. Speicher: SQLite, laeuft ohne PC und ohne Modell."""
+"""Reminders: JARVIS notifies you by push (ntfy) at the given time. Storage: SQLite, works without the PC and without a model."""
 import sqlite3, time, datetime as dt
 from zoneinfo import ZoneInfo
 
@@ -30,7 +30,7 @@ def _recur_suffix(recur):
 
 
 def add(text, when, recur=None):
-    """when: aware datetime. recur: None (einmalig), "daily" oder "weekly". Gibt (id, Zeittext) zurueck."""
+    """when: aware datetime. recur: None (once), "daily" or "weekly". Returns (id, time text)."""
     text = str(text).strip()[:300]
     if not text:
         raise ValueError("Text fehlt")
@@ -48,8 +48,8 @@ def add(text, when, recur=None):
 
 
 def reschedule_next(rid, now=None):
-    """Fuer eine wiederholende Erinnerung: schiebt due auf die naechste Faelligkeit NACH jetzt.
-    Gibt den neuen Faelligkeits-Zeitstempel zurueck, oder None wenn nicht wiederholend/nicht mehr offen."""
+    """For a recurring reminder: moves due to the next occurrence AFTER now.
+    Returns the new due timestamp, or None if not recurring / no longer open."""
     now = now or time.time()
     c = _con()
     try:
@@ -68,8 +68,8 @@ def reschedule_next(rid, now=None):
 
 
 def snooze(key, minutes=10):
-    """key: Nummer oder Suchtext (wie bei cancel()). Verschiebt die Faelligkeit auf jetzt+minutes,
-    bleibt offen (done=0). Gibt (rows, neue_faellig_ts_oder_None) zurueck."""
+    """key: number or search text (as with cancel()). Moves the due time to now+minutes,
+    stays open (done=0). Returns (rows, new_due_ts_or_None)."""
     key = str(key).strip().lstrip("#")
     minutes = max(1, min(int(minutes), 10080))
     c = _con()
@@ -97,7 +97,7 @@ def open_list():
 
 
 def cancel(key):
-    """key: Nummer oder Suchtext. Gibt die geloeschten Eintraege zurueck."""
+    """key: number or search text. Returns the deleted entries."""
     key = str(key).strip().lstrip("#")
     c = _con()
     try:
@@ -109,7 +109,7 @@ def cancel(key):
             c.execute("UPDATE reminders SET done = 2 WHERE id = ?", (rows[0][0],))
             c.commit()
             return rows, True
-        return rows, False         # 0 oder mehrere Treffer: nichts geloescht
+        return rows, False         # 0 or several matches: nothing deleted
     finally:
         c.close()
 
@@ -139,5 +139,5 @@ def today_lines():
 
 
 def fmt_list(rows):
-    """rows: aus open_list()/due_now() -- 3er- oder 4er-Tupel (mit/ohne recur), beide erlaubt."""
+    """rows: from open_list()/due_now() -- 3- or 4-tuples (with/without recur), both allowed."""
     return "\n".join(f"#{r[0]} {fmt_ts(r[1])} - {r[2]}{_recur_suffix(r[3] if len(r) > 3 else None)}" for r in rows) or "Keine offenen Erinnerungen."

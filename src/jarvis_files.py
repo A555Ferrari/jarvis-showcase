@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-JARVIS Datei-Werkzeug: baut Word-, Excel-, PowerPoint- und PDF-Dateien aus einem
-JSON-Inhalt, den das grosse Modell liefert. Wird vom Routing-Proxy importiert.
-Ablage: /var/lib/jarvis/files/<id>/<name>.<ext> (Download ueber den Voice-Proxy, /files/...).
+JARVIS file tool: builds Word, Excel, PowerPoint and PDF files from a
+JSON content that the large model delivers. Imported by the routing proxy.
+Storage: /var/lib/jarvis/files/<id>/<name>.<ext> (download via the voice proxy, /files/...).
 """
 import contextvars
 import copy
@@ -15,7 +15,7 @@ import shutil
 
 FILES_DIR = "/var/lib/jarvis/files"
 
-# Einmal-Chat (ephemeral): Dateien dieses Chats werden unter der Chat-ID vermerkt und beim Verlassen geloescht.
+# One-time chat (ephemeral): files of this chat are recorded under the chat ID and deleted when leaving.
 EPH = contextvars.ContextVar("jarvis_eph", default="")
 EPH_DIR = "/var/lib/jarvis/eph"
 _EPH_ID_RE = re.compile(r"[A-Za-z0-9_-]{8,40}")
@@ -38,13 +38,13 @@ def eph_register(fid: str, eph_id: str = ""):
 
 
 def eph_register_text(text: str, eph_id: str):
-    """Sicherheitsnetz: alle Datei-IDs aus [[file:..]]/[[img:..]]/[[doc:..]]-Marken eintragen."""
+    """Safety net: register all file IDs from [[file:..]]/[[img:..]]/[[doc:..]] markers."""
     for fid in re.findall(r"\[\[(?:file|img|doc):([0-9a-f]{12})/", text or ""):
         eph_register(fid, eph_id)
 
 
 def eph_cleanup(eph_id: str) -> int:
-    """Alle Dateien eines Einmal-Chats loeschen. -> Anzahl geloeschter Ordner."""
+    """Delete all files of a one-time chat. -> number of deleted folders."""
     if not _EPH_ID_RE.fullmatch(eph_id or ""):
         return 0
     p = os.path.join(EPH_DIR, eph_id + ".txt")
@@ -67,7 +67,7 @@ def eph_cleanup(eph_id: str) -> int:
 
 
 def eph_sweep(max_age_s: float = 8 * 3600) -> int:
-    """Liegengebliebene Einmal-Chat-Dateien (Browser einfach weg) nach max_age_s entfernen."""
+    """Remove leftover one-time-chat files (browser simply gone) after max_age_s."""
     n = 0
     try:
         names = os.listdir(EPH_DIR)
@@ -96,7 +96,7 @@ HOWTO_RE = re.compile(r"^\s*(wie|how|was ist|what is|warum|why|wo |where)\b", re
 
 
 def file_kind(text: str):
-    """-> 'docx' | 'xlsx' | 'pptx' | 'pdf' wenn der Nutzer eine Datei erzeugt haben will, sonst None."""
+    """-> 'docx' | 'xlsx' | 'pptx' | 'pdf' if the user wants a file created, otherwise None."""
     if len(text) > 600 or HOWTO_RE.search(text) or not MAKE_RE.search(text):
         return None
     for kind, pat in KIND_WORDS:
@@ -133,7 +133,7 @@ PROMPTS = {
 
 
 def new_dir():
-    """-> (id, Verzeichnis) fuer eine neue Datei bzw. ein hochgeladenes Bild."""
+    """-> (id, directory) for a new file or an uploaded image."""
     fid = secrets.token_hex(6)
     d = os.path.join(FILES_DIR, fid)
     os.makedirs(d, exist_ok=True)
@@ -142,7 +142,7 @@ def new_dir():
 
 
 def save_image(raw: bytes, directory: str, name: str) -> str:
-    """Bild pruefen und als JPEG (max. 1600 px) ablegen. -> Dateiname. Wirft bei Nicht-Bildern."""
+    """Check the image and store it as JPEG (max. 1600 px). -> file name. Raises for non-images."""
     from PIL import Image
     im = Image.open(io.BytesIO(raw))
     im.load()
@@ -161,7 +161,7 @@ def save_image(raw: bytes, directory: str, name: str) -> str:
 
 
 def _fit(path, max_w, max_h):
-    """Seitenverhaeltnis erhalten. -> (breite, hoehe) in derselben Einheit wie max_w/max_h."""
+    """Keep the aspect ratio. -> (width, height) in the same unit as max_w/max_h."""
     from PIL import Image
     with Image.open(path) as im:
         w, h = im.size
@@ -179,7 +179,7 @@ def _safe(name, fallback):
 
 
 def _s(v):
-    # 04.10.: Modelle schreiben Absaetze/Stichpunkte manchmal als Objekt {"text": ...} statt als Text
+    # 04.10.: models sometimes write paragraphs/bullet points as an object {"text": ...} instead of as text
     if isinstance(v, dict):
         for k in ("text", "content", "value", "paragraph", "bullet", "title"):
             if k in v and not isinstance(v[k], (dict, list)):
@@ -188,15 +188,15 @@ def _s(v):
 
 
 def formula(v, r):
-    """Zeilen-Platzhalter in Excel-Formeln aufloesen: {r} = diese Excel-Zeile, {first} = erste Datenzeile (2),
-    {last}/{prev} = Zeile darueber. So bleiben Formeln richtig, wenn Zeilen eingefuegt oder geloescht werden."""
+    """Resolve row placeholders in Excel formulas: {r} = this Excel row, {first} = first data row (2),
+    {last}/{prev} = row above. This keeps formulas correct when rows are inserted or deleted."""
     if isinstance(v, str) and v.startswith("="):
         return v.replace("{r}", str(r)).replace("{first}", "2").replace("{last}", str(r - 1)).replace("{prev}", str(r - 1))
     return v
 
 
 def num(v):
-    """Zahl, die als Text geliefert wurde ('1500', '1\'200.50'), in eine Zahl umwandeln."""
+    '''Convert a number delivered as text ('1500', '1\'200.50') into a number.'''
     if isinstance(v, str):
         t = v.strip().replace("'", "").replace(" ", "")
         if re.fullmatch(r"-?\d+(\.\d+)?", t):
@@ -286,7 +286,7 @@ def build_xlsx(d, path):
             ws.freeze_panes = "A2"
         _rows = list(sh.get("rows") or [])
         if cols and _rows and isinstance(_rows[0], (list, tuple)) and [_s(c).strip().lower() for c in _rows[0]] == [c.strip().lower() for c in cols]:
-            _rows = _rows[1:]                       # Kopfzeile nicht doppelt (Modell wiederholt sie gern)
+            _rows = _rows[1:]                       # header row not twice (the model likes to repeat it)
         for row in _rows:
             if not isinstance(row, (list, tuple)):
                 continue
@@ -300,7 +300,7 @@ def build_xlsx(d, path):
             ws.append(out)
             rows_total += 1
         money = re.compile(r"preis|betrag|summe|total|mwst|kosten|price|amount|cost|chf|eur|\u20ac|fr\.", re.I)
-        for row in ws.iter_rows(min_row=2):                    # Zahlenformat: Geld/Kommazahlen mit 2 Stellen und Tausendertrennung
+        for row in ws.iter_rows(min_row=2):                    # number format: money/decimal numbers with 2 places and thousands separator
             for c in row:
                 hdr = _s(ws.cell(1, c.column).value) if cols else ""
                 is_formula = isinstance(c.value, str) and c.value.startswith("=")
@@ -323,15 +323,15 @@ def build_xlsx(d, path):
 
 
 
-# ── Excel: Nachrechnen und Pruefen (LibreOffice headless) ─────────────────────
+# ── Excel: recalculating and checking (LibreOffice headless) ──────────────────
 XL_ERRORS = ("#NAME?", "#DIV/0!", "#REF!", "#VALUE!", "#N/A", "#NUM!", "#NULL!", "Err:")
 
 
 def xlsx_check(path):
-    """Datei mit LibreOffice neu rechnen lassen und pruefen. -> Liste von Problemen (leer = in Ordnung).
-    1) Fehlerwerte (#NAME?, #DIV/0!, #REF! ...) nach der Neuberechnung,
-    2) Summenzeilen/-spalten, die nicht alle Daten abdecken (z.B. =SUM(B2:B3) bei Daten bis Zeile 4),
-    3) Formeln, die auf leere Zellen zeigen und dadurch 0 ergeben."""
+    """Have LibreOffice recalculate the file and check it. -> list of problems (empty = fine).
+    1) error values (#NAME?, #DIV/0!, #REF! ...) after recalculation,
+    2) total rows/columns that do not cover all data (e.g. =SUM(B2:B3) with data down to row 4),
+    3) formulas that point at empty cells and therefore evaluate to 0."""
     import subprocess, tempfile
     from openpyxl import load_workbook
     problems = []
@@ -366,11 +366,11 @@ def xlsx_check(path):
                 if not m:
                     continue
                 c1, r1, c2, r2 = m.group(1).upper(), int(m.group(2)), m.group(3).upper(), int(m.group(4))
-                if c1 == c2 and c.row in total_rows:                      # Summe einer Spalte in der Summenzeile
+                if c1 == c2 and c.row in total_rows:                      # sum of a column in the total row
                     data = [r for r in range(2, c.row) if r not in total_rows]
                     if data and (r1 > data[0] or r2 < data[-1]):
                         problems.append(f"{ws.title}!{c.coordinate} {v} deckt die Datenzeilen {data[0]}-{data[-1]} nicht ganz ab")
-                elif r1 == r2 == c.row and c.column > 2:                 # Summe einer Zeile (Summenspalte)
+                elif r1 == r2 == c.row and c.column > 2:                 # sum of a row (total column)
                     from openpyxl.utils import column_index_from_string as ci
                     nums = [k for k in range(2, c.column) if isinstance(ws.cell(c.row, k).value, (int, float))
                             or (isinstance(ws.cell(c.row, k).value, str) and ws.cell(c.row, k).value.startswith("="))]
@@ -381,7 +381,7 @@ def xlsx_check(path):
 
 
 def xlsx_grid(path):
-    """Tabelle als Text fuer die Modell-Pruefung: 'E8: =E7+E7 => 238.14' (Formel => von LibreOffice berechneter Wert)."""
+    """Table as text for the model check: 'E8: =E7+E7 => 238.14' (formula => value calculated by LibreOffice)."""
     import subprocess, tempfile
     from openpyxl import load_workbook
     wf = load_workbook(path)
@@ -411,11 +411,11 @@ def xlsx_grid(path):
 
 
 def fix_self_refs(data):
-    """Letzte Rettung: Formeln, die sich selbst in ihren Bereich einschliessen, werden repariert.
-    - senkrecht (=SUM(B5) oder =SUM(B2:B5) in B5): -> SUM(B<erste Datenzeile>:B<Zeile-1>)
-    - waagrecht (=SUM(B5:D5) in B5): stehen mehrere solche Zellen in einer Zeile, ist es eine Summenzeile -> Spaltensumme der Zeilen darueber;
-      steht nur eine da (Gesamt-Spalte), wird der Bereich vor die eigene Zelle gekuerzt.
-    -> Anzahl Korrekturen."""
+    """Last resort: repair formulas that include themselves in their own range.
+    - vertical (=SUM(B5) or =SUM(B2:B5) in B5): -> SUM(B<first data row>:B<row-1>)
+    - horizontal (=SUM(B5:D5) in B5): if several such cells are in one row, it is a total row -> column sum of the rows above;
+      if only one is there (grand-total column), the range is cut off before the cell itself.
+    -> number of corrections."""
     from openpyxl.utils import get_column_letter, column_index_from_string as ci
     n = 0
     rx = re.compile(r"\b(SUM|AVERAGE|MIN|MAX|COUNT|SUMME|MITTELWERT)\(\s*\$?([A-Z]{1,3})\$?(\d{1,4})(?::\$?([A-Z]{1,3})\$?(\d{1,4}))?\s*\)", re.I)
@@ -444,7 +444,7 @@ def fix_self_refs(data):
                     if r - 1 < off:
                         continue
                     rep = f"{m.group(1)}({col}{off}:{col}{r - 1})"
-                elif j + 1 > lo:                        # Gesamt-Spalte: Bereich bis vor die eigene Zelle
+                elif j + 1 > lo:                        # grand-total column: range up to just before the cell itself
                     rep = f"{m.group(1)}({get_column_letter(lo)}{r}:{get_column_letter(j)}{r})"
                 else:
                     continue
@@ -454,8 +454,8 @@ def fix_self_refs(data):
 
 
 def apply_cell_fixes(data, fixes):
-    """Formel-Korrekturen {"cell": "E8", "formula": "=E6+E7"} in die Rohdaten (data.sheets[].rows) eintragen.
-    Es werden nur Zellen ueberschrieben, die schon eine Formel sind. -> Anzahl angewendeter Korrekturen."""
+    """Write formula corrections {"cell": "E8", "formula": "=E6+E7"} into the raw data (data.sheets[].rows).
+    Only cells that already contain a formula are overwritten. -> number of corrections applied."""
     from openpyxl.utils import coordinate_to_tuple
     n = 0
     sheets = data.get("sheets") or []
@@ -554,7 +554,7 @@ def build_pptx(d, path):
 
 
 def write_preview(kind: str, data: dict, fid: str, name: str):
-    """Inhalt fuer die Vorschau in der Oberflaeche (aus denselben Daten wie die Datei)."""
+    """Content for the preview in the interface (from the same data as the file)."""
     def items(key):
         return [{"title": _s(x.get("title") or x.get("heading")),
                  "bullets": [_s(b) for b in x.get("bullets") or []],
@@ -620,18 +620,18 @@ def build(kind: str, data: dict, fid: str = None):
     return f"{fid}/{name}", title, de, en
 
 
-# ── Gezielte Aenderungen ─────────────────────────────────────────────────────
-# Jede Datei hat neben der Vorschau eine data.json mit dem VOLLEN Inhalt (auch Notizen, alle
-# Excel-Zeilen, Formeln, Bilder). Eine Aenderung ist eine Liste kleiner Operationen auf dieser
-# JSON; der Code wendet sie an und baut die Datei neu. Das Modell schreibt nie die ganze Datei neu
-# (ausser es verlangt ausdruecklich "replace_all").
+# ── Targeted changes ──────────────────────────────────────────────────────────
+# Besides the preview, every file has a data.json with the FULL content (also notes, all
+# Excel rows, formulas, images). A change is a list of small operations on this
+# JSON; the code applies them and rebuilds the file. The model never rewrites the whole file
+# (unless it explicitly asks for "replace_all").
 ITEM_KEYS = {"pptx": "slides", "docx": "sections", "pdf": "sections", "xlsx": "sheets"}
 LIST_FIELDS = {"paragraphs", "bullets", "columns"}
 STR_FIELDS = {"title", "heading", "subtitle", "notes", "name", "filename"}
 
 
 def localize_images(data, fid):
-    """Bilder (_img) ins Verzeichnis der Datei kopieren, damit sie unabhaengig von alten Versionen bleiben."""
+    """Copy images (_img) into the directory of the file so that they stay independent of old versions."""
     d = os.path.abspath(os.path.join(FILES_DIR, fid))
     os.makedirs(d, exist_ok=True)
     for key in ("slides", "sections"):
@@ -667,7 +667,7 @@ def dump_data(kind, data, fid):
 
 
 def load_data(fid):
-    """-> (kind, data) mit absoluten _img-Pfaden, oder None wenn es keine data.json gibt."""
+    """-> (kind, data) with absolute _img paths, or None if there is no data.json."""
     try:
         with open(os.path.join(FILES_DIR, fid, "data.json"), encoding="utf-8") as f:
             j = json.load(f)
@@ -684,7 +684,7 @@ def load_data(fid):
 
 
 def outline(kind, data):
-    """Lesbare Uebersicht MIT Pfaden fuer das Modell. Listen sind 1-basiert."""
+    """Readable overview WITH paths for the model. Lists are 1-based."""
     L = [f'title: {_s(data.get("title"))}', f'filename: {_s(data.get("filename"))}']
     if kind == "pptx":
         L.append(f'Folie 1 = title slide [title], [subtitle]: {_s(data.get("subtitle"))}')
@@ -718,8 +718,8 @@ REF_RE = re.compile(r"(?<![A-Za-z_.!'])(\$?[A-Z]{1,3}\$?)(\d+)(?![\d(A-Za-z_])")
 
 
 def _shift_formula(f, at, delta, extend=False):
-    """Zeilenbezuege wie Excel verschieben. at = Excel-Zeile, an der eingefuegt (delta=+1) bzw. die geloescht
-    (delta=-1) wurde. extend: Bereichsende direkt ueber der Einfuegestelle waechst mit (Summenzeile)."""
+    """Shift row references like Excel does. at = Excel row at which a row was inserted (delta=+1) or deleted
+    (delta=-1). extend: a range end directly above the insertion point grows with it (total row)."""
     def sub(m):
         row = int(m.group(2))
         end = m.start() > 0 and f[m.start() - 1] == ":"
@@ -734,7 +734,7 @@ def _shift_formula(f, at, delta, extend=False):
 
 
 def _shift_rows(sheet, at, delta, skip=None):
-    """Alle Formeln eines Blatts nach Einfuegen/Loeschen der Zeile at (Excel-Nummer) anpassen."""
+    """Adjust all formulas of a sheet after inserting/deleting row at (Excel number)."""
     for k, row in enumerate(sheet.get("rows") or []):
         if k == skip or not isinstance(row, list):
             continue
@@ -753,7 +753,7 @@ def _lab(x):
 
 
 def _find(cands, token, what):
-    """Eintrag nach Beschriftung finden: exakt, sonst eindeutig 'beginnt mit' / 'enthaelt'. -> 1-basierter Index."""
+    """Find an entry by label: exact, otherwise a unique 'starts with' / 'contains'. -> 1-based index."""
     t = token.strip().lower()
     for test in (lambda c: c == t, lambda c: c.startswith(t), lambda c: t in c):
         hits = [i for i, c in enumerate(cands, 1) if c and test(c)]
@@ -767,10 +767,10 @@ def _find(cands, token, what):
 
 
 def norm_path(data, path):
-    """Pfad mit Beschriftungen in einen Pfad mit Zahlen umwandeln: sheets.1.rows.Maerz.Miete -> sheets.1.rows.3.2,
-    slides.Mars.title -> slides.3.title. Zahlen bleiben unveraendert."""
+    """Convert a path with labels into a path with numbers: sheets.1.rows.Maerz.Miete -> sheets.1.rows.3.2,
+    slides.Mars.title -> slides.3.title. Numbers stay unchanged."""
     toks = [t for t in str(path).strip().strip(".").split(".") if t]
-    if toks and toks[0].lower() in ("folie", "slide"):          # Foliennummer wie in PowerPoint (Titelfolie = 1)
+    if toks and toks[0].lower() in ("folie", "slide"):          # slide number as in PowerPoint (title slide = 1)
         if len(toks) == 1:
             toks = ["slides"]
         elif re.fullmatch(r"\d+", toks[1]):
@@ -873,7 +873,7 @@ def _coerce(key, value):
 
 
 def _row_cells(val, cols):
-    """Modelle liefern eine neue Tabellenzeile gern als Objekt {Spalte: Wert} (oder als Text davon) statt als Liste."""
+    """Models like to deliver a new table row as an object {column: value} (or as text of it) instead of a list."""
     import ast, json as _json
     if isinstance(val, (list, tuple)) and len(val) == 1 and isinstance(val[0], str) and val[0].strip().startswith("{"):
         val = val[0]
@@ -933,8 +933,8 @@ def validate(kind, data):
 
 
 def apply_ops(kind, data, ops, uploads=None, queries=None):
-    """Operationen auf eine Kopie von data anwenden. -> (neue_data, aenderungen[], fehler[]).
-    ops: set / insert / delete / move / image / replace_all, Pfade 1-basiert (siehe outline())."""
+    """Apply operations to a copy of data. -> (new_data, changes[], errors[]).
+    ops: set / insert / delete / move / image / replace_all, paths 1-based (see outline())."""
     data = copy.deepcopy(data)
     uploads, queries = uploads or [], queries or {}
     changes, errors = [], []
@@ -952,7 +952,7 @@ def apply_ops(kind, data, ops, uploads=None, queries=None):
                 path = norm_path(data, path)
                 op = dict(op, path=path)
                 if is_folie and name == "insert" and op.get("index") not in (None, ""):
-                    k = _idx(op["index"], 10 ** 6) - 1            # neue Folie soll Folie N werden
+                    k = _idx(op["index"], 10 ** 6) - 1            # the new slide should become slide N
                     if k < 1:
                         raise ValueError("an Folie 1 steht die Titelfolie")
                     op["index"] = k
@@ -1009,7 +1009,7 @@ def apply_ops(kind, data, ops, uploads=None, queries=None):
                 last = str(path).strip(".").split(".")[-1]
                 if (last == "rows" and at in (None, "") and cur and isinstance(cur[-1], list) and cur[-1]
                         and TOTAL_RE.match(_s(cur[-1][0]))):
-                    pos = len(cur) - 1                       # neue Zeile vor die Summenzeile
+                    pos = len(cur) - 1                       # new row before the total row
                 val = op.get("value")
                 if last == ikey:
                     val = _norm_item(kind, val)
@@ -1020,7 +1020,7 @@ def apply_ops(kind, data, ops, uploads=None, queries=None):
                         _pt = [t for t in str(path).strip(".").split(".") if t]
                         val = _row_cells(val, data["sheets"][int(_pt[1]) - 1].get("columns") or [])
                     except ValueError:
-                        raise                              # Hinweistext geht als Fehler an das Modell zurueck (Wiederholung)
+                        raise                              # hint text goes back to the model as an error (retry)
                     except Exception:
                         pass
                     if not isinstance(val, (list, tuple)):

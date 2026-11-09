@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-JARVIS Dokument-Werkzeug: hochgeladene Dokumente (PDF, Word, PowerPoint, Excel, Text, CSV, HTML ...) einlesen.
-- Text ausziehen (bei Scans per OCR), als text.txt neben dem Original ablegen
-- Word/PowerPoint/Excel zusaetzlich als data.json im Format von jarvis_files einlesen -> JARVIS kann sie gezielt aendern
-- Suche (BM25) in langen Texten, damit nur die zur Frage passenden Stellen ins Modell kommen
-Ablage: /var/lib/jarvis/files/<id>/<name>.<ext> + text.txt (+ data.json)
+JARVIS document tool: read in uploaded documents (PDF, Word, PowerPoint, Excel, text, CSV, HTML ...).
+- Extract the text (via OCR for scans), store it as text.txt next to the original
+- Also read Word/PowerPoint/Excel into data.json in the jarvis_files format -> JARVIS can change them in a targeted way
+- Search (BM25) in long texts so that only the passages matching the question reach the model
+Storage: /var/lib/jarvis/files/<id>/<name>.<ext> + text.txt (+ data.json)
 """
 import io
 import json
@@ -16,7 +16,7 @@ from collections import Counter
 import jarvis_files as jf
 
 MAX_BYTES = 30 * 1024 * 1024
-MAX_TEXT = 600_000          # Zeichen, die pro Dokument gespeichert werden
+MAX_TEXT = 600_000          # characters stored per document
 OCR_MAX_PAGES = 40
 TEXT_EXT = {"txt", "md", "csv", "tsv", "json", "log", "xml", "yaml", "yml", "ini", "cfg", "conf", "py", "js", "ts",
             "sh", "ps1", "bat", "sql", "html", "htm", "rtf", "eml", "ics", "vcf", "toml"}
@@ -111,7 +111,7 @@ def _clean_line(t: str) -> str:
 
 
 def _shape_lines(sh):
-    """Textzeilen eines Shapes ohne Aufzaehlungszeichen; reine Zahlen (Foliennummer) werden verworfen."""
+    """Text lines of a shape without bullet characters; pure numbers (slide numbers) are discarded."""
     lines = []
     for p in sh.text_frame.paragraphs:
         t = _clean_line("".join(r.text for r in p.runs))
@@ -188,7 +188,7 @@ def _html(raw: bytes):
 
 
 def extract(raw: bytes, name: str):
-    """-> (text, info). Wirft ValueError bei unlesbaren Dateien."""
+    """-> (text, info). Raises ValueError for unreadable files."""
     e = ext_of(name)
     if e == "pdf":
         text, info = _pdf(raw)
@@ -209,7 +209,7 @@ def extract(raw: bytes, name: str):
     return text[:MAX_TEXT], info
 
 
-# ── Einlesen fuer die Bearbeitung (Word/PowerPoint/Excel -> JSON von jarvis_files) ──
+# ── Reading in for editing (Word/PowerPoint/Excel -> JSON of jarvis_files) ──
 def import_docx(raw: bytes, stem: str):
     from docx import Document
     d = Document(io.BytesIO(raw))
@@ -255,7 +255,7 @@ def import_pptx(raw: bytes, stem: str, directory: str):
         frames = [sh for sh in sl.shapes if sh.has_text_frame and _shape_lines(sh)]
         if tshape is not None and tshape.has_text_frame and _shape_lines(tshape):
             ttl = " ".join(_shape_lines(tshape))
-        elif frames:                                       # kein Titel-Platzhalter: groesste Schrift, sonst oberstes Feld
+        elif frames:                                       # no title placeholder: largest font, otherwise the topmost box
             best = max(frames, key=lambda sh: (_first_size(sh), -(sh.top or 0)))
             tshape, ttl = best, " ".join(_shape_lines(best))
         bullets = []
@@ -314,7 +314,7 @@ def import_xlsx(raw: bytes, stem: str):
 
 # ── Ablegen ──────────────────────────────────────────────────────────────────
 def ingest(raw: bytes, filename: str):
-    """Dokument speichern, Text ausziehen, ggf. fuer die Bearbeitung einlesen.
+    """Store the document, extract the text, read it in for editing if applicable.
     -> dict(id, name, kind, rel, chars, pages, ocr, note, editable, preview)"""
     if len(raw) > MAX_BYTES:
         raise ValueError("Datei ist groesser als 30 MB")
@@ -384,7 +384,7 @@ def chunk(text: str, size=1400, overlap=200):
 
 
 def search(text: str, query: str, budget: int = 6000, head: int = 1200):
-    """Die zur Frage passenden Stellen eines langen Textes. -> String (Anfang + beste Abschnitte in Textreihenfolge)."""
+    """The passages of a long text that match the question. -> string (start + best sections in text order)."""
     if len(text) <= budget:
         return text
     chunks = chunk(text)
@@ -413,7 +413,7 @@ def search(text: str, query: str, budget: int = 6000, head: int = 1200):
             continue
         picked.add(i)
         used += len(chunks[i])
-    if len(picked) == 1:                                  # nichts Passendes: gleichmaessig Stichproben
+    if len(picked) == 1:                                  # nothing matching: evenly spaced samples
         step = max(1, n // 6)
         for i in range(step, n, step):
             if used + len(chunks[i]) <= budget:

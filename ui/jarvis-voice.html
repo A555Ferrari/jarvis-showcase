@@ -422,7 +422,7 @@ function modelLabel(m){
   if (m==='open-meteo') return 'Wetterdaten direkt';
   return m;
 }
-/* Text mit ```-Bloecken: Text bereinigt, Code als eigener Block mit Kopieren */
+/* Text with ``` blocks: text cleaned up, code as its own block with a copy button */
 function renderMsg(node, raw){
   node.textContent='';
   var files=[];
@@ -464,7 +464,7 @@ function renderMsg(node, raw){
     }
   }
 }
-/* Vorschau: aus denselben Daten gebaut wie die Datei (keine exakte Abbildung des Layouts) */
+/* Preview: built from the same data as the file (not an exact rendering of the layout) */
 var pvWait={};
 function loadPreview(path, pv, btn){
   (pvWait[path]=pvWait[path]||[]).push([pv,btn]);
@@ -506,7 +506,7 @@ function renderPreview(pv, btn, d){
   scrollDown();
 }
 
-/* Bilder anhaengen */
+/* Attach images */
 var pending=[], upKey=0;
 function canSend(){ return !pending.some(function(p){ return p.loading; }) && !!(elTxt.value.trim() || pending.length); }
 function renderAtts(){
@@ -589,7 +589,7 @@ function addEntry(who,text,cls,model){
         var v=ta.value.trim();
         if (!v) return;
         if (busy || !wsOpen()){ toast(busy ? 'JARVIS arbeitet noch' : 'Keine Verbindung'); return; }
-        // wie viele Nutzernachrichten kommen nach dieser? (0 = es ist die letzte)
+        // how many user messages come after this one? (0 = it is the last)
         var back=0, n=wrap.nextElementSibling;
         while (n){ if (n.classList.contains('user')) back++; n=n.nextElementSibling; }
         while (wrap.nextElementSibling) wrap.nextElementSibling.remove();
@@ -659,7 +659,7 @@ function setBusy(on){
   else if (wsReady){ setDot('on'); setSt('BEREIT'); setLabel(IDLE); }
 }
 
-/* ── Gespraeche (Seitenleiste) ───────────────────────────── */
+/* ── Conversations (sidebar) ─────────────────────────────── */
 function renderConvs(items, current){
   convItems=items; convCurrent=current;
   var box=$('convl'); box.textContent='';
@@ -728,7 +728,7 @@ $('pcbtn').addEventListener('click', function(){
 setInterval(function(){ if (!document.hidden) askPc(); }, 15000);
 setInterval(function(){ if (pcPending) askPc(); }, 4000);
 setInterval(function(){ send({type:'ping'}); }, 20000);
-setInterval(function(){ if (awaiting && resync) send({type:'history'}); }, 5000);   // haelt die Verbindung offen
+setInterval(function(){ if (awaiting && resync) send({type:'history'}); }, 5000);   // keeps the connection open
 
 /* ── Verbindung ──────────────────────────────────────────── */
 function wsUrl(){ return ((location.protocol === 'https:') ? 'wss' : 'ws')+'://'+CFG.wsHost+':'+CFG.wsPort+'/ws/voice'; }
@@ -845,7 +845,7 @@ function handleJson(m){
   }
 }
 
-/* ── Wiedergabe (Web Audio; Safari blockiert Audio.play() ohne Nutzeraktion) ── */
+/* ── Playback (Web Audio; Safari blocks Audio.play() without a user action) ── */
 var playCtx=null, currentSrc=null, playGen=0;
 function unlockAudio(){
   var C = window.AudioContext || window.webkitAudioContext;
@@ -899,7 +899,7 @@ async function initAudio(){
         audio:{ channelCount:1, echoCancellation:true, noiseSuppression:true, autoGainControl:true }
       });
     }catch(e1){
-      // Safari scheitert teils an den Vorgaben: zweiter Versuch ohne Vorgaben
+      // Safari partly fails on the constraints: second attempt without constraints
       micStream = await navigator.mediaDevices.getUserMedia({ audio:true });
     }
   }catch(e){
@@ -917,14 +917,14 @@ async function initAudio(){
     return false;
   }
   var Ctx = window.AudioContext || window.webkitAudioContext;
-  // Mikrofon war nur freigegeben (releaseMic): neu anschliessen, Rest steht schon
+  // microphone had only been released (releaseMic): reconnect, the rest is already in place
   if (audioCtx && procNode){
     srcNode = audioCtx.createMediaStreamSource(micStream);
     srcNode.connect(analyser); srcNode.connect(procNode);
     return true;
   }
-  // EIN AudioContext fuer Aufnahme und Wiedergabe (zwei mit verschiedenen Abtastraten
-  // liefern in Safari Stille). Aufnahme in Geraete-Rate, buildPcm16 rechnet auf 16 kHz um.
+  // ONE AudioContext for recording and playback (two with different sample rates
+  // produce silence in Safari). Recording at the device rate, buildPcm16 converts to 16 kHz.
   unlockAudio();
   audioCtx = playCtx || new Ctx();
   if (audioCtx.state === 'suspended'){ try { await audioCtx.resume(); } catch(e){} }
@@ -964,7 +964,7 @@ function drawWave(){
   }
   rafId=requestAnimationFrame(drawWave);
 }
-/* Mikrofon nach jeder Aufnahme loslassen (sonst bleibt es aktiv und stoert anderes Audio) */
+/* Release the microphone after every recording (otherwise it stays active and disturbs other audio) */
 function releaseMic(){
   if (srcNode){ try { srcNode.disconnect(); } catch(e){} srcNode=null; }
   if (micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
@@ -976,7 +976,7 @@ async function startRec(){
   if (recording || busy || !wsReady || initPending) return;
   holding=true;
   if (!(audioCtx && micStream)){
-    // Nur EINE Mikrofon-Anfrage; nicht aufnehmen, wenn inzwischen losgelassen wurde
+    // Only ONE microphone request; do not record if it has been released in the meantime
     initPending=true;
     var ok=false;
     try { ok=await initAudio(); } finally { initPending=false; }
@@ -1136,7 +1136,7 @@ window.addEventListener('keyup', function(e){
 });
 window.addEventListener('blur', function(){ if (recording) stopRec(); });
 
-// zurueck im Tab/in der App: sofort nachladen (Timer laufen im Hintergrund gedrosselt)
+// back in the tab/app: reload immediately (timers are throttled in the background)
 document.addEventListener("visibilitychange", function(){
   if (document.hidden) return;
   if (awaiting && resync) send({type:"history"});

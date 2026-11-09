@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Autosave alle 15 Minuten
+Description=JARVIS autosave every 15 minutes
 
 [Timer]
 OnBootSec=3min

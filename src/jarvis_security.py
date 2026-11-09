@@ -1,8 +1,8 @@
-"""Security-Lab-Modus (Grundgeruest, King 05./06.10.): Lesen/Scannen NUR gegen Ziele auf einer
-von King gepflegten Allowlist (eigene Hosts im eigenen Netz). Kein Internet-Ziel, kein
-"offensiv", keine Exploit-Ausfuehrung -- nur Erkennung (Ping, Portscan). Jede Aktion wird
-geloggt. Angebunden an Agent und Chat: Portscan nur nach Ja/Nein-Bestaetigung (wie bei kalender_loeschen). Dieses
-Modul liefert Allowlist-Pruefung, Ping, Portscan und Log.
+"""Security lab mode (basic framework, owner decision 05/06.10.): reading/scanning ONLY against targets on an
+allow list maintained by the owner (own hosts in the own network). No internet target, nothing
+"offensive", no exploit execution -- detection only (ping, port scan). Every action is
+logged. Connected to agent and chat: port scan only after a yes/no confirmation (as with kalender_loeschen). This
+module provides allow-list check, ping, port scan and log.
 """
 import ipaddress
 import json
@@ -36,7 +36,7 @@ def _save_allowlist(entries):
 
 
 def allowlist_zeigen():
-    """Lesend, keine Bestaetigung noetig."""
+    """Read-only, no confirmation needed."""
     return _load_allowlist()
 
 
@@ -45,14 +45,14 @@ def _is_private(ip_str):
         ip = ipaddress.ip_address(ip_str)
     except ValueError:
         return False
-    return ip.is_private and not ip.is_loopback or ip.is_loopback  # Loopback (eigener Host) ausdruecklich erlaubt, sonst nur privat
+    return ip.is_private and not ip.is_loopback or ip.is_loopback  # loopback (own host) explicitly allowed, otherwise private only
 
 
 def resolve_target(ziel):
-    """Prueft ein Ziel (IP oder Name aus der Allowlist) gegen die Allowlist.
-    Gibt (ip, eintrag) zurueck oder wirft NichtErlaubt mit einer klaren Begruendung.
-    Es wird NIE eine beliebige DNS-Aufloesung vorgenommen -- nur IPs, die woertlich in der
-    Allowlist stehen, oder ihr Name, gelten."""
+    """Checks a target (IP or name from the allow list) against the allow list.
+    Returns (ip, entry) or raises NichtErlaubt (not allowed) with a clear reason.
+    NO arbitrary DNS resolution is ever performed -- only IPs that literally appear in the
+    allow list, or their name, are valid."""
     entries = _load_allowlist()
     ziel = str(ziel).strip()
     for e in entries:
@@ -61,7 +61,7 @@ def resolve_target(ziel):
             if not _is_private(ip):
                 raise NichtErlaubt(f"Eintrag '{ip}' in der Allowlist ist keine private IP -- abgelehnt (Sicherheitsnetz, nicht die Allowlist-Pflege).")
             return ip, e
-    # 11.10.: King erlaubt ausdruecklich ALLE privaten Netze (er ist der einzige im Netz). Wortlaut-IP, kein DNS.
+    # 11.10.: the owner explicitly allows ALL private networks (he is the only one on the network). Literal IP, no DNS.
     if any(e.get("name") == "alle-privaten-netze" for e in entries):
         try:
             _ip = str(ipaddress.ip_address(ziel))
@@ -83,8 +83,8 @@ def _log(action, ziel, ip, detail):
 
 
 def ping_status(ziel):
-    """Reines ICMP-Ping (ist der Host erreichbar?). Niedrigstes Risiko, braucht im geplanten
-    Chat-Weg keine Rueckfrage -- reines Lesen."""
+    """Plain ICMP ping (is the host reachable?). Lowest risk, needs no confirmation in the planned
+    chat path -- read-only."""
     ip, entry = resolve_target(ziel)
     try:
         r = subprocess.run(["ping", "-c", "2", "-W", "2", ip], capture_output=True, text=True, timeout=10)
@@ -97,9 +97,9 @@ def ping_status(ziel):
 
 
 def port_scan(ziel, art="schnell"):
-    """nmap-Scan. 'schnell' = Top-100-Ports, 'voll' = Top-1000 (Standard-nmap). Nur Erkennung
-    (-sV fuer Dienstversion), keine Exploit-/Vuln-Skripte. Braucht im geplanten Chat-Weg eine
-    Ja/Nein-Bestaetigung (ist mehr als reines Lesen)."""
+    """nmap scan. 'schnell' (fast) = top 100 ports, 'voll' (full) = top 1000 (standard nmap). Detection only
+    (-sV for service version), no exploit/vuln scripts. Needs a yes/no confirmation in the planned
+    chat path (it is more than plain reading)."""
     ip, entry = resolve_target(ziel)
     ports = "--top-ports 100" if art == "schnell" else "--top-ports 1000"
     cmd = ["nmap", "-sV", "-T4"] + ports.split() + [ip]

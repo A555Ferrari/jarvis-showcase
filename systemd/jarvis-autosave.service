@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Autosave nach GitHub
+Description=JARVIS autosave to GitHub
 After=network-online.target
 Wants=network-online.target
 

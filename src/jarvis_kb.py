@@ -1,8 +1,8 @@
-"""Wissensbasis: vom Nutzer dauerhaft hinterlegte Dokumente (Upload), lokal durchsuchbar.
-- Text kommt aus jarvis_docs.extract (PDF mit OCR, Word, Excel, PowerPoint, Text ...), "[Seite N]"-Marken bleiben fuer Quellenangaben erhalten
-- Index: Abschnitte mit nomic-embed-text (lokal, Laptop-CPU) + BM25-Stichwortsuche, Verschmelzung per Reciprocal Rank Fusion
-- Ablage: /var/lib/jarvis/wissen.db (SQLite; Text, Vektoren). Originaldateien werden NICHT behalten (der Nutzer hat sie selbst).
-- Dokumenttext ist fremder Text: immer als Daten behandeln, nie als Anweisung."""
+"""Knowledge base: documents the user has stored permanently (upload), searchable locally.
+- Text comes from jarvis_docs.extract (PDF with OCR, Word, Excel, PowerPoint, text ...); "[Seite N]" markers (page N) are kept for source references
+- Index: sections with an embedding model (local, laptop CPU) + BM25 keyword search, merged with Reciprocal Rank Fusion
+- Storage: /var/lib/jarvis/wissen.db (SQLite; text, vectors). Original files are NOT kept (the user has them).
+- Document text is foreign text: always treat it as data, never as an instruction."""
 import hashlib, math, os, re, sqlite3, threading, time
 from collections import Counter
 
@@ -13,9 +13,9 @@ import jarvis_docs as jd
 
 DB = "/var/lib/jarvis/wissen.db"
 EMB_URL = "http://127.0.0.1:11434/api/embed"
-MODEL = "bge-m3"            # mehrsprachig (Deutsch/Englisch gemischt); nomic-embed-text war bei Deutsch schwach
+MODEL = "bge-m3"            # multilingual (German/English mixed); nomic-embed-text was weak on German
 MIN_COS, MIN_BM = 0.45, 2.0   # bge-m3: relevant ca. 0.5-0.6, Rauschen ca. 0.3-0.4
-PFX_Q, PFX_D = "", ""         # bge-m3 braucht keine Praefixe
+PFX_Q, PFX_D = "", ""         # bge-m3 needs no prefixes
 MAX_DOCS = 300
 MAX_CHUNKS_PER_DOC = 2500
 MAX_CHUNKS_TOTAL = 40000
@@ -68,7 +68,7 @@ def _chunks(text: str):
 
 
 def add_text(name: str, text: str) -> dict:
-    """Dokument aufnehmen. -> {"id", "name", "chunks", "pages", "duplicate"}; wirft ValueError bei leer/zu gross/voll."""
+    """Ingest a document. -> {"id", "name", "chunks", "pages", "duplicate"}; raises ValueError if empty/too large/full."""
     text = (text or "").replace("\x00", "").strip()
     if len(text) < 30:
         raise ValueError("Kein lesbarer Text in der Datei")
@@ -130,7 +130,7 @@ def delete(doc_id: int) -> bool:
 
 
 def find(key: str):
-    """Nummer oder Namensteil -> Liste passender Dokumente (id, name)."""
+    """Number or part of a name -> list of matching documents (id, name)."""
     key = str(key or "").strip().lstrip("#")
     con = _con()
     try:
@@ -163,7 +163,7 @@ def _load():
 
 
 def search(query: str, k: int = 6, min_cos: float = MIN_COS):
-    """Hybrid-Suche. -> [{"name","page","text","cos","bm25"}] (beste zuerst); leer, wenn nichts Passendes."""
+    """Hybrid search. -> [{"name","page","text","cos","bm25"}] (best first); empty if nothing matches."""
     query = (query or "").strip()[:400]
     if not query:
         return []
@@ -231,7 +231,7 @@ def job_set(name: str, state: str | None, msg: str = ""):
 
 
 def jobs():
-    """Laufende und zuletzt fehlgeschlagene Aufnahmen (Fehler 1 h sichtbar, 'indexing' ohne Lebenszeichen nach 3 h = verworfen)."""
+    """Running and recently failed ingestions (errors visible for 1 h, 'indexing' without a sign of life after 3 h = discarded)."""
     c = _jcon()
     try:
         now = time.time()
@@ -243,7 +243,7 @@ def jobs():
 
 
 def add_file_bg(raw: bytes, filename: str, on_done=None):
-    """Startet die Aufnahme im Hintergrund. on_done(result|None, fehler|None) wird im Hintergrundthread gerufen."""
+    """Starts ingestion in the background. on_done(result|None, error|None) is called in the background thread."""
     name = re.sub(r"\s+", " ", os.path.basename(filename or "dokument"))[:120]
     job_set(name, "indexing", "wird gelesen und indexiert")
 

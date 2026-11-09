@@ -1,5 +1,5 @@
-"""Gedaechtnis ueber alte Gespraeche: Frage+Antwort-Paare werden mit nomic-embed-text eingebettet (lokal, Laptop-CPU)
-und per Kosinus-Aehnlichkeit durchsucht. Nur echte Gespraeche (BASES), keine Test-Sessions."""
+"""Memory of past conversations: question+answer pairs are embedded with nomic-embed-text (local, laptop CPU)
+and searched by cosine similarity. Real conversations only (BASES), no test sessions."""
 import sqlite3, time, re, threading
 import numpy as np
 import httpx
@@ -7,7 +7,7 @@ import httpx
 DB = "/var/lib/jarvis/history.db"
 EMB_URL = "http://127.0.0.1:11434/api/embed"
 MODEL = "nomic-embed-text"
-BASES = ("voice", "siri")          # Sitzungen, die ins Gedaechtnis kommen (Praefix vor dem Doppelpunkt)
+BASES = ("voice", "siri")          # sessions that go into memory (prefix before the colon)
 _lock = threading.Lock()
 
 
@@ -26,7 +26,7 @@ def _embed(texts):
 
 
 def index_new(max_n=40):
-    """Embeddet neue Frage/Antwort-Paare. Gibt die Anzahl zurueck."""
+    """Embeds new question/answer pairs. Returns the count."""
     with _lock:
         con = _con()
         try:
@@ -60,7 +60,7 @@ def _kw(query):
 
 
 def search(query, k=5, min_sim=0.72, current_session=None):
-    """Hybrid: Einbettung + Stichwort. Treffer nur, wenn ein inhaltliches Stichwort vorkommt oder die Aehnlichkeit hoch ist."""
+    """Hybrid: embedding + keyword. A hit only if a content keyword occurs or the similarity is high."""
     index_new()
     con = _con()
     try:

@@ -1,5 +1,5 @@
-"""News-Schlagzeilen fuer das Briefing: RSS/Atom, nur Titel, parallel, jede Quelle faellt einzeln aus.
-Inhalte sind externe, nicht vertrauenswuerdige Texte: nur Titel, bereinigt und gekuerzt, nie als Anweisung behandeln."""
+"""News headlines for the briefing: RSS/Atom, titles only, in parallel, each source fails on its own.
+Content is external, untrusted text: titles only, sanitised and shortened, never treated as an instruction."""
 import json, re, time, html, urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""JARVIS Kurzbefehl-Endpunkt (Siri/iPhone). Nur Tailscale (per tailscale serve), Token Pflicht.
+"""JARVIS shortcut endpoint (Siri/iPhone). Tailscale only (via tailscale serve), token required.
 POST /ask  Header X-Token, JSON {"text": "..."} -> {"text": "..."}"""
 import hmac, re, os, time
 import httpx, uvicorn

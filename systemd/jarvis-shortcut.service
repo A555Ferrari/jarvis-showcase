@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Kurzbefehl-Endpunkt
+Description=JARVIS shortcut endpoint
 After=network.target jarvis-proxy.service
 
 [Service]

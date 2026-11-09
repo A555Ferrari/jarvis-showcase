@@ -1,4 +1,4 @@
-"""Morgen-Briefing: Wetter, Kalender, Mails, Systemlage. Jeder Teil faellt einzeln aus, ohne das Briefing zu kippen."""
+"""Morning briefing: weather, calendar, mail, system state. Each part fails on its own without breaking the briefing."""
 import json, urllib.request, datetime as dt, os
 from zoneinfo import ZoneInfo
 import jarvis_icloud as ic

@@ -369,7 +369,7 @@ function modelLabel(m){
   if (m==='open-meteo') return 'Wetterdaten direkt';
   return m;
 }
-/* Text mit ```-Bloecken: Text bereinigt, Code als eigener Block mit Kopieren */
+/* Text with ``` blocks: text cleaned up, code as its own block with a copy button */
 function renderMsg(node, raw){
   node.textContent='';
   var files=[];
@@ -411,7 +411,7 @@ function renderMsg(node, raw){
     }
   }
 }
-/* Vorschau: aus denselben Daten gebaut wie die Datei (keine exakte Abbildung des Layouts) */
+/* Preview: built from the same data as the file (not an exact rendering of the layout) */
 var pvWait={};
 function loadPreview(path, pv, btn){
   (pvWait[path]=pvWait[path]||[]).push([pv,btn]);
@@ -453,7 +453,7 @@ function renderPreview(pv, btn, d){
   scrollDown();
 }
 
-/* Bilder anhaengen */
+/* Attach images */
 var pending=[], upKey=0;
 function canSend(){ return !pending.some(function(p){ return p.loading; }) && !!(elTxt.value.trim() || pending.length); }
 function renderAtts(){
@@ -559,7 +559,7 @@ function setBusy(on){
 }
 function clearLog(){ elCol.textContent=''; elHero.classList.remove('hide'); currentAi=null; }
 
-/* Gaming-PC (nur Anzeige) */
+/* Gaming PC (display only) */
 var pcOnline=null, pcHost=false;
 function renderPc(){
   var d=$('pcdot'), s=$('pcst');

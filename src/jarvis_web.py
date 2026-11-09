@@ -1,4 +1,4 @@
-"""Webseite lesen: holt eine oeffentliche Seite und liefert den Text (nur http/https, nur oeffentliche Adressen)."""
+"""Read a web page: fetches a public page and returns the text (http/https only, public addresses only)."""
 import ipaddress, socket, re
 from urllib.parse import urlparse, urljoin
 import requests
@@ -30,7 +30,7 @@ def _check(url: str) -> str:
 
 
 def fetch(url: str) -> tuple[str, str]:
-    """Gibt (text, endgueltige_url) zurueck; wirft ValueError mit lesbarer Meldung."""
+    """Returns (text, final_url); raises ValueError with a readable message."""
     url = url.strip()
     if not re.match(r"^[a-z]+://", url, re.I):
         url = "https://" + url

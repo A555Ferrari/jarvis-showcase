@@ -25,7 +25,7 @@ import jarvis_files as jf
 import builtins as _bi
 
 
-def print(*a, **k):          # Einmal-Chat: nichts ins Journal schreiben (Suchanfragen, Dateinamen, Fehlertexte)
+def print(*a, **k):          # one-time chat: write nothing to the journal (search queries, file names, error texts)
     if jf.EPH.get():
         return
     _bi.print(*a, **k)
@@ -38,7 +38,7 @@ import threading
 import jarvis_memory as jm
 import jarvis_tools_small as jts      # Rechnen, Zufall, Passwort, QR, Umrechnen (18.10.)
 import jarvis_games as jgm            # Spiele (18.10.)
-import jarvis_metrics as jmx          # Monitoring mit Verlauf (18.10.)
+import jarvis_metrics as jmx          # monitoring with history (18.10.)
 threading.Thread(target=jm.loop, daemon=True).start()
 
 
@@ -56,20 +56,20 @@ threading.Thread(target=_eph_sweeper, daemon=True).start()
 # ── Config ────────────────────────────────────────────────────────────────────
 LAPTOP_OLLAMA   = "http://localhost:11434"
 PC_OLLAMA       = "http://192.168.1.100:11434"
-SMALL_MODEL     = "granite4:3b"   # 04.10.: Modellvergleich + Low-Power-Test (ESCALATE 10/12, Deutsch); vorher qwen2.5:3b
-LARGE_MODEL     = "gemma4:26b"   # 04.10.: Modellvergleich (docs/OFFENE_PUNKTE.md); Think MUSS aus bleiben (Gemma4: mit Think Fehler/leere Antworten)
-LARGE_CTX       = 16384      # EIN Wert fuer alle 14b-Aufrufe, sonst laedt Ollama das Modell bei jedem Wechsel neu
+SMALL_MODEL     = "granite4:3b"   # 04.10.: model comparison + low-power test (ESCALATE 10/12, German); previously qwen2.5:3b
+LARGE_MODEL     = "gemma4:26b"   # 04.10.: model comparison (docs/OFFENE_PUNKTE.md); think MUST stay off (Gemma4: with think errors/empty answers)
+LARGE_CTX       = 16384      # ONE value for all 14b calls, otherwise Ollama reloads the model on every switch
 WOL_MAC         = "AA:BB:CC:DD:EE:FF"
 ESCALATE_WORD   = "ESCALATE"
 PC_BOOT_TIMEOUT = 120  # seconds
 SEARXNG_URL     = "http://localhost:8888/search"
 EMBED_MODEL     = "nomic-embed-text"
-SMALL_TIMEOUT   = 280  # seconds; unter dem 300-s-Timeout von Open WebUI bleiben
-HISTORY_DB      = "/var/lib/jarvis/history.db"   # ausserhalb /opt/jarvis: nie in Git
-HISTORY_N       = 10   # so viele letzte Nachrichten gehen mit (5 Wechsel)
-HISTORY_N_SMALL = 4    # ohne PC (3b auf der CPU): nur 2 Wechsel, je max. 400 Zeichen
-HISTORY_MAX_AGE = 120  # Minuten; aeltere Nachrichten gelten als neues Gespraech
-HISTORY_MAX_LEN = 1500 # Zeichen pro Nachricht im Kontext
+SMALL_TIMEOUT   = 280  # seconds; stay below the 300 s timeout of Open WebUI
+HISTORY_DB      = "/var/lib/jarvis/history.db"   # outside /opt/jarvis: never in Git
+HISTORY_N       = 10   # this many last messages are sent along (5 exchanges)
+HISTORY_N_SMALL = 4    # without the PC (3b on the CPU): only 2 exchanges, max. 400 characters each
+HISTORY_MAX_AGE = 120  # minutes; older messages count as a new conversation
+HISTORY_MAX_LEN = 1500 # characters per message in the context
 
 JARVIS_SYSTEM = """You are JARVIS — Just A Rather Very Intelligent System. You are the private AI assistant of your creator, running on his personal hardware at home. You are loyal, witty, and efficient. You speak like the JARVIS from Iron Man: calm, confident, with a dry sense of humor. You never reveal that you are built on any specific AI model.
 
@@ -141,8 +141,8 @@ _pc_cache = {"t": 0.0, "up": False}
 
 
 async def pc_is_online(max_age: float = 0.0) -> bool:
-    """max_age > 0: letztes Ergebnis so lange wiederverwenden (spart die Wartezeit
-    pro Anfrage, wenn der PC aus ist)."""
+    """max_age > 0: reuse the last result for that long (saves the waiting time
+    per request while the PC is off)."""
     now = time.monotonic()
     if max_age and now - _pc_cache["t"] < max_age:
         return _pc_cache["up"]
@@ -178,18 +178,18 @@ async def wake_and_wait() -> bool:
 
 
 def inject_system(messages: list) -> list:
-    # 11.10.: vorher wurde JARVIS_SYSTEM komplett UEBERSPRUNGEN, wenn der Client (z.B. voice_proxy) schon eine
-    # eigene System-Message mitschickt (nur Zeit/Live-Daten-Hinweis, OHNE Persona) -> das kleine Modell (PC aus)
-    # antwortete dann komplett ohne JARVIS-Persoenlichkeit und ohne Selbstwissen. Jetzt wird JARVIS_SYSTEM immer
-    # vorangestellt, die Client-System-Message bleibt als ZWEITE System-Message erhalten.
+    # 11.10.: previously JARVIS_SYSTEM was SKIPPED completely when the client (e.g. voice_proxy) already sent its
+    # own system message (only a time/live-data hint, WITHOUT persona) -> the small model (PC off)
+    # then answered with no JARVIS personality and no self-knowledge at all. Now JARVIS_SYSTEM is always
+    # prepended, the client system message is kept as the SECOND system message.
     if messages and messages[0].get("role") == "system":
         return [{"role": "system", "content": JARVIS_SYSTEM}, messages[0]] + messages[1:]
     return [{"role": "system", "content": JARVIS_SYSTEM}] + messages
 
 
 async def ask_small(messages: list):
-    """Antwort des 3b, oder None bei Timeout/Fehler (dann KEIN HTTP 500 nach aussen,
-    sonst zeigt Open WebUI nur 'Server Connection Error')."""
+    """Answer of the 3b, or None on timeout/error (then NO HTTP 500 to the outside,
+    otherwise Open WebUI only shows 'Server Connection Error')."""
     payload = {"model": SMALL_MODEL, "messages": messages, "stream": False}
     chars = sum(len(str(m.get("content", ""))) for m in messages)
     print(f"[JARVIS] 3b request: {len(messages)} msgs, ~{chars // 4} tokens", flush=True)
@@ -214,10 +214,10 @@ You are the powerful system. Never escalate, never refuse a task for being too c
 
 
 def swap_system_for_large(messages: list) -> list:
-    """Das ESCALATE-Prompt gilt nur fuers 3b. Das 14b bekommt ein eigenes
-    System-Prompt, sonst eskaliert es selbst ins Leere."""
-    # Nur das JARVIS/ESCALATE-Prompt ersetzen. Andere System-Nachrichten (Zeit-Kontext
-    # vom Voice-Proxy, RAG-Kontext von Open WebUI) bleiben erhalten.
+    """The ESCALATE prompt only applies to the 3b. The 14b gets its own
+    system prompt, otherwise it escalates into the void itself."""
+    # Only replace the JARVIS/ESCALATE prompt. Other system messages (time context
+    # from the voice proxy, RAG context from Open WebUI) are kept.
     out = [m for m in messages
            if not (m.get("role") == "system" and m.get("content") == JARVIS_SYSTEM)]
     return [{"role": "system", "content": LARGE_SYSTEM}] + out
@@ -260,8 +260,8 @@ async def single_chunk_stream(text: str, model: str):
 
 
 def is_task_request(messages: list) -> bool:
-    """Hilfsanfragen von Open WebUI (Titel, Tags, Folgefragen, Suchanfragen) beginnen
-    mit '### Task:'. Die bekommen KEINE Persona und eskalieren nie (wecken sonst den PC)."""
+    """Helper requests from Open WebUI (title, tags, follow-up questions, search queries) start
+    with '### Task:'. They get NO persona and never escalate (otherwise they would wake the PC)."""
     users = [m for m in messages if m.get("role") == "user"]
     return bool(users) and str(users[-1].get("content", "")).lstrip().startswith("### Task:")
 
@@ -272,8 +272,8 @@ CHANNEL_HINT = {
 }
 
 def reply(text: str, model: str, stream: bool):
-    """Antwort im Ollama-Format. Bei stream=false EIN JSON-Objekt, nicht NDJSON
-    (Open WebUI nutzt stream=false fuer Suchanfragen-/Titel-Generierung)."""
+    """Answer in Ollama format. With stream=false ONE JSON object, not NDJSON
+    (Open WebUI uses stream=false for search query/title generation)."""
     if stream:
         return StreamingResponse(single_chunk_stream(text, model),
                                  media_type="application/x-ndjson")
@@ -295,10 +295,10 @@ async def collect_large(messages: list, persona: bool = True) -> str:
     return "".join(parts)
 
 
-# ── Gespraechsverlauf (SQLite) ────────────────────────────────────────────────
-# Clients ohne eigenen Verlauf (Voice) schicken "session": "<name>" im Body mit.
-# Der Proxy haengt dann die letzten HISTORY_N Nachrichten dieser Session an und
-# speichert Frage + Antwort. Clients mit eigenem Verlauf (Open WebUI) bleiben unberuehrt.
+# ── Conversation history (SQLite) ─────────────────────────────────────────────
+# Clients without their own history (voice) send "session": "<name>" in the body.
+# The proxy then appends the last HISTORY_N messages of this session and
+# stores question + answer. Clients with their own history (Open WebUI) are left untouched.
 
 def _db():
     con = sqlite3.connect(HISTORY_DB, timeout=5)
@@ -310,9 +310,9 @@ def _db():
     return con
 
 
-# Gespraeche: eine Oberflaeche nennt nur ihre Basis-Session ("voice"). Der Proxy fuehrt
-# darunter mehrere Gespraeche als "voice:<id>" und merkt sich in der Tabelle state, welches
-# gerade laeuft. So sehen alle Geraete dasselbe Gespraech.
+# Conversations: an interface only names its base session ("voice"). Below it the proxy keeps
+# several conversations as "voice:<id>" and remembers in the state table which one
+# is currently active. This way all devices see the same conversation.
 def _state_get(con, key):
     row = con.execute("SELECT value FROM state WHERE key=?", (key,)).fetchone()
     return row[0] if row else None
@@ -350,8 +350,8 @@ def conv_select(base: str, cid: str) -> bool:
 
 
 def resolve_session(session: str) -> str:
-    """Basis-Session -> laufendes Gespraech. Nach HISTORY_MAX_AGE Minuten ohne Nachricht
-    (und ohne dass es eben ausgewaehlt wurde) beginnt automatisch ein neues."""
+    """Base session -> current conversation. After HISTORY_MAX_AGE minutes without a message
+    (and unless it was just selected) a new one starts automatically."""
     if not session or ":" in session:
         return session
     con = _db()
@@ -369,7 +369,7 @@ def resolve_session(session: str) -> str:
 
 
 def conv_delete(base: str, cid: str):
-    """-> (geloescht?, war es das laufende Gespraech?)"""
+    """-> (deleted?, was it the current conversation?)"""
     con = _db()
     try:
         n = con.execute("DELETE FROM messages WHERE session=?", (f"{base}:{cid}",)).rowcount
@@ -397,7 +397,7 @@ def conv_list(base: str, n: int = 50) -> list:
             for s, ts, c, t in rows]
 
 
-# "Neues Gespraech" = eine Zeile mit role='reset'; alles davor zaehlt nicht mehr
+# "new conversation" = a row with role='reset'; everything before it no longer counts
 _AFTER_RESET = ("COALESCE((SELECT MAX(id) FROM messages WHERE session=? AND role='reset'), 0)")
 
 
@@ -412,7 +412,7 @@ def history_reset(session: str):
 
 
 def history_view(session: str, n: int = 40) -> list:
-    """Fuer die Oberflaeche: letzte n Nachrichten des aktuellen Gespraechs (ohne Altersgrenze)."""
+    """For the interface: last n messages of the current conversation (without age limit)."""
     con = _db()
     try:
         rows = con.execute(
@@ -440,7 +440,7 @@ def history_load(session: str, n: int = HISTORY_N, max_len: int = HISTORY_MAX_LE
         print(f"[JARVIS] Verlauf laden FEHLER {e!r}", flush=True)
         return []
     rows.reverse()
-    while rows and rows[0][0] != "user":      # immer mit einer Nutzerfrage beginnen
+    while rows and rows[0][0] != "user":      # always start with a user question
         rows.pop(0)
     return [{"role": r, "content": c[:max_len]} for r, c in rows]
 
@@ -448,7 +448,7 @@ def history_load(session: str, n: int = HISTORY_N, max_len: int = HISTORY_MAX_LE
 def history_save(session: str, user_text: str, answer: str, model: str):
     if not session or not user_text or not answer:
         return
-    user_text, answer = jts.redact(user_text), jts.redact(answer)      # erzeugte Passwoerter/PINs nie im Verlauf
+    user_text, answer = jts.redact(user_text), jts.redact(answer)      # generated passwords/PINs never in the history
     try:
         con = _db()
         try:
@@ -465,7 +465,7 @@ def history_save(session: str, user_text: str, answer: str, model: str):
 
 
 async def record(gen, session: str, user_text: str, model: str):
-    """Reicht einen Ollama-Stream durch und speichert am Ende Frage + Antwort."""
+    """Passes an Ollama stream through and stores question + answer at the end."""
     parts = []
     async for line in gen:
         if session:
@@ -478,11 +478,11 @@ async def record(gen, session: str, user_text: str, model: str):
 
 
 # ── Tools: Websuche + Wetter (automatisch) ────────────────────────────────────────────────────
-# Der Proxy entscheidet selbst, ob gesucht wird. Gilt fuer Chat UND Voice.
-# PC online : 14b entscheidet + formuliert die Anfrage, Seiten werden geladen und
-#             die passendsten Abschnitte per Embedding ausgewaehlt.
-# PC aus    : Stichwort-Vorfilter, dann entscheidet das 3b; nur Such-Snippets
-#             (Seitenabruf waere auf der Laptop-CPU zu langsam).
+# The proxy decides by itself whether to search. Applies to chat AND voice.
+# PC online : 14b decides + words the query, pages are loaded and
+#             the best-matching sections are selected by embedding.
+# PC off    : keyword pre-filter, then the 3b decides; only search snippets
+#             (fetching pages would be too slow on the laptop CPU).
 
 LIVE_HINTS = re.compile(
     r"(wetter|regen|schnee|temperatur|heute|morgen|gestern|aktuell|neu(e|er|es|en)?st|"
@@ -536,8 +536,8 @@ DAY_RE = re.compile(r"\b(heute|jetzt|gerade|morgen|übermorgen|uebermorgen|woche
 
 
 def pick_days(texts: list, today):
-    """Welche Tage (Offset ab heute) meint die Frage? None = unklar/alle.
-    texts: Nutzernachrichten, neueste zuerst; die erste mit Tagesangabe gilt."""
+    """Which days (offset from today) does the question mean? None = unclear/all.
+    texts: user messages, newest first; the first one with a day reference counts."""
     for t in texts:
         low = t.lower()
         if not DAY_RE.search(low):
@@ -570,7 +570,7 @@ async def decide_tool(messages: list, pc_up: bool):
     weatherish = bool(WEATHER_HINTS.search(last))
     prevs = [str(u.get("content", "")) for u in users[-3:-1]]
     followup = len(last) < 60 and any(WEATHER_HINTS.search(p) or LIVE_HINTS.search(p) for p in prevs)
-    # "und in Baden?" / "und am Donnerstag?" direkt nach einer Wetterfrage
+    # "and in Zurich?" / "and on Thursday?" right after a weather question
     weather_followup = (not weatherish and len(last) < 60 and bool(FOLLOWUP_RE.search(last))
                         and any(WEATHER_HINTS.search(p) for p in prevs)
                         and bool(PLACE_RE.search(last) or DAY_RE.search(last)))
@@ -580,7 +580,7 @@ async def decide_tool(messages: list, pc_up: bool):
     last_idx = max(i for i, m in enumerate(messages) if m.get("role") == "user")
 
     def regex_place() -> str:
-        # Reine Nachfrage ("und am Donnerstag?") erbt den Ort aus frueheren Fragen
+        # A pure follow-up ("and on Thursday?") inherits the place from earlier questions
         texts = [last] if weatherish else [str(u.get("content", "")) for u in reversed(users[-4:])]
         for t in texts:
             m = PLACE_RE.search(t)
@@ -608,9 +608,9 @@ async def decide_tool(messages: list, pc_up: bool):
             r = await c.post(f"{base}/api/chat", json=payload)
         d = json.loads(r.json().get("message", {}).get("content", "{}"))
         tool = str(d.get("tool") or "").lower()
-        if d.get("search") is True and not tool:      # altes Antwortformat
+        if d.get("search") is True and not tool:      # old answer format
             tool = "search"
-        # Das 3b ist beim Tool-Entscheid unzuverlaessig: Wetter-Stichwort gewinnt.
+        # The 3b is unreliable when choosing a tool: the weather keyword wins.
         if tool == "weather" or ((weatherish or weather_followup) and not pc_up):
             place = str(d.get("place") or "").strip()
             if not pc_up and place and place.casefold() not in dialog.casefold():
@@ -630,10 +630,10 @@ async def decide_tool(messages: list, pc_up: bool):
     return None
 
 
-# ── Wetter (Open-Meteo, gratis, ohne Key) ─────────────────────────────────────
+# ── Weather (Open-Meteo, free, no key) ────────────────────────────────────────
 GEO_URL         = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL    = "https://api.open-meteo.com/v1/forecast"
-HOME_PLACE_FILE = "/var/lib/jarvis/home_place"   # Standard-Ort (eine Zeile), nicht in Git
+HOME_PLACE_FILE = "/var/lib/jarvis/home_place"   # default place (one line), not in Git
 
 WMO = {
     0: "klar", 1: "überwiegend klar", 2: "teils bewölkt", 3: "bedeckt",
@@ -668,8 +668,8 @@ def _is_english(text: str) -> bool:
 
 
 def weather_direct(g, cur, dly, today, only, question: str) -> str:
-    """Fertige Wetter-Antwort direkt aus den Daten (ohne Modell). Fuer den Betrieb ohne PC:
-    das 3b verwechselte Tage und Orte und brauchte 30-100 s."""
+    """Finished weather answer straight from the data (no model). For operation without the PC:
+    the 3b mixed up days and places and needed 30-100 s."""
     en = _is_english(question)
     offs = [o for o in (only or [0, 1]) if o < len(dly["time"])][:5]
     rel = ({0: "Today", 1: "Tomorrow"} if en else {0: "Heute", 1: "Morgen", 2: "Übermorgen"})
@@ -714,8 +714,8 @@ def home_place() -> str:
 
 
 async def geocode(place: str):
-    """Ortsname -> Open-Meteo-Treffer (dict) oder None. Schweizer Treffer bevorzugt,
-    ausser der erste Treffer ist eine grosse Stadt."""
+    """Place name -> Open-Meteo hit (dict) or None. Swiss hits preferred,
+    unless the first hit is a big city."""
     names = [place.strip()]
     short = re.split(r"[,(/]", place)[0].strip()
     if short and short not in names:
@@ -731,8 +731,8 @@ async def geocode(place: str):
             if best.get("country_code") != "CH" and (best.get("population") or 0) < 100_000:
                 best = next((x for x in res if x.get("country_code") == "CH"), best)
             return best
-        # Nichts gefunden: aehnlich klingende Schweizer Orte mit gleichem Anfang suchen
-        # (Spracherkennung/Tippfehler: "Lensburg", "Lenburg" -> Lenzburg)
+        # Nothing found: look for similar-sounding Swiss places with the same beginning
+        # (speech recognition/typos: "Lensburg", "Lenburg" -> Lenzburg)
         word = names[-1]
         if len(word) >= 4:
             r = await c.get(GEO_URL, params={"name": word[:3], "count": 100, "language": "de",
@@ -752,7 +752,7 @@ def _num(v, unit: str = "", nd: int = 0) -> str:
 
 
 async def weather_context(place: str, compact: bool = False, asked: list = None):
-    """-> (Kontext-Text fuers Modell, Quellen-Zeile). Wirft bei Netz-/API-Fehlern."""
+    """-> (context text for the model, source line). Raises on network/API errors."""
     named = place
     if not place:
         place = home_place()
@@ -798,9 +798,9 @@ async def weather_context(place: str, compact: bool = False, asked: list = None)
         "Daily forecast:",
     ]
     rel = {0: "heute/today", 1: "morgen/tomorrow", 2: "übermorgen/day after tomorrow"}
-    only = pick_days(asked or [], today)   # Tage deterministisch bestimmen, nicht dem LLM ueberlassen
+    only = pick_days(asked or [], today)   # determine the days deterministically, do not leave it to the LLM
     if compact:
-        # 3b: so wenig wie moeglich, sonst verwechselt es die Tage
+        # 3b: as little as possible, otherwise it mixes up the days
         rel = {0: "HEUTE", 1: "MORGEN", 2: "ÜBERMORGEN"}
         if only and 0 not in only:
             lines[1:2] = []                      # "Now:"-Zeile weg
@@ -897,7 +897,7 @@ async def fetch_page(url: str) -> str:
 
 
 async def best_chunks(query: str, results: list, k: int = 5) -> list:
-    """Top-Seiten laden, in Abschnitte teilen, per Embedding (PC) die passendsten waehlen."""
+    """Load top pages, split into sections, pick the best-matching ones by embedding (PC)."""
     pages = await asyncio.gather(*[fetch_page(x["url"]) for x in results[:4]])
     chunks = []
     for idx, text in enumerate(pages):
@@ -907,7 +907,7 @@ async def best_chunks(query: str, results: list, k: int = 5) -> list:
                 chunks.append((idx, piece))
     if not chunks:
         return []
-    if len(chunks) > 32:                       # 04.10.: Vorauswahl nach Stichworten, sonst ~10 s Embedding auf der CPU
+    if len(chunks) > 32:                       # 04.10.: preselection by keywords, otherwise ~10 s of embedding on the CPU
         words = {w for w in re.findall(r"\w{4,}", query.lower())}
         def kscore(ch):
             low = ch[1].lower()
@@ -931,8 +931,8 @@ _last_place = {}   # session -> zuletzt gefragter Wetter-Ort
 
 
 async def web_context(messages: list, pc_up: bool, session: str = ""):
-    """Tool-Schicht: Wetter (Open-Meteo) oder Websuche (SearXNG).
-    -> (Kontext-Text fuers Modell, Quellen-Zeile fuer die Antwort) oder None."""
+    """Tool layer: weather (Open-Meteo) or web search (SearXNG).
+    -> (context text for the model, source line for the answer) or None."""
     tool = await decide_tool(messages, pc_up)
     if not tool:
         return None
@@ -943,13 +943,13 @@ async def web_context(messages: list, pc_up: bool, session: str = ""):
             if tool["place"]:
                 _last_place[session] = tool["place"]
             elif _last_place.get(session):
-                # kein Ort genannt: im laufenden Gespraech gilt der zuletzt gefragte Ort
+                # no place named: in the running conversation the most recently asked place applies
                 tool["place"] = _last_place[session]
                 print(f"[JARVIS] Wetter-Tool: Ort aus letzter Frage: {tool['place']!r}", flush=True)
         try:
             return await weather_context(tool["place"], compact=not pc_up, asked=tool.get("asked"))
         except Exception as e:
-            # Open-Meteo nicht erreichbar -> normale Websuche als Ersatz
+            # Open-Meteo not reachable -> normal web search as a fallback
             print(f"[JARVIS] Wetter-Tool FEHLER {e!r} -> Websuche", flush=True)
             users = [m for m in messages if m.get("role") == "user"]
             query = str(users[-1].get("content", ""))[:200]
@@ -959,7 +959,7 @@ async def web_context(messages: list, pc_up: bool, session: str = ""):
 
 
 async def search_context(query: str, pc_up: bool):
-    """Websuche (SearXNG) + Seitenausschnitte -> (Kontext-Text, Quellen-Zeile). Auch fuer das Agent-Werkzeug."""
+    """Web search (SearXNG) + page excerpts -> (context text, source line). Also for the agent tool."""
     print(f"[JARVIS] Websuche: {query!r} (pc={'an' if pc_up else 'aus'})", flush=True)
     try:
         results = await searx(query, 6 if pc_up else 5)
@@ -996,7 +996,7 @@ async def search_context(query: str, pc_up: bool):
 
 
 async def with_suffix(gen, suffix: str):
-    """Haengt vor dem done-Chunk eines Ollama-Streams einen Text an."""
+    """Appends a text before the done chunk of an Ollama stream."""
     async for line in gen:
         if suffix:
             try:
@@ -1011,13 +1011,13 @@ async def with_suffix(gen, suffix: str):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-# Feste Befehle und Eskalation per Regel. Das 3b versteht "wake the pc" / "escalate" nicht,
-# und der Voice-Pfad schickt kein ESCALATE-Prompt mit.
+# Fixed commands and escalation by rule. The 3b does not understand "wake the pc" / "escalate",
+# and the voice path does not send an ESCALATE prompt.
 WAKE_RE = re.compile(
     r"\b(wake|weck\w*|aufwecken|start\w*|einschalten|schalt\w*|turn on|boot\w*|fahr\w*)\b.{0,30}"
     r"\b(pc|computer|rechner|gaming)\b", re.I)
 LIVE_RE = re.compile(r"\b(wetter|weather|regen\w*|temperatur\w*|status|ungelesen\w*|telefon\w*|handy\w*|nummer|kontakt\w*|geburtstag\w*|phone|birthday|erinner\w*|besprochen|letztes mal|neulich|vorhin|last time|we discussed|remember)\b", re.I)
-SECURITY_RE = re.compile(r"\b(portscan|port.?scan|nmap|ping\w*|ethical.?hack\w*|pentest\w*|penetrationstest\w*|scann\w*)\b", re.I)  # 11.10.: Modell darf die Rueckfrage/Ausfuehrung nie selbst erfinden, muss netz_ping/portscan wirklich aufrufen
+SECURITY_RE = re.compile(r"\b(portscan|port.?scan|nmap|ping\w*|ethical.?hack\w*|pentest\w*|penetrationstest\w*|scann\w*)\b", re.I)  # 11.10.: the model must never invent the confirmation question/execution itself, it has to really call netz_ping/portscan
 PORTSCAN_RE = re.compile(r"\b(portscan|port.?scan|nmap)\b", re.I)
 _IP_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 KALMAIL_RE = re.compile(
@@ -1049,14 +1049,14 @@ DOC_TAG_RE = re.compile(r"\[\[doc:([0-9a-f]{12}/[A-Za-z0-9_.-]+)\]\]")
 
 
 def strip_tags(text: str) -> str:
-    """Marken der Oberflaeche fuer das Modell lesbar machen bzw. entfernen."""
+    """Make the interface markers readable for the model, or remove them."""
     text = IMG_TAG_RE.sub(lambda m: f"[image attached: {m.group(1).split('/')[1]}] ", str(text))
     text = DOC_TAG_RE.sub(lambda m: f"[document attached: {m.group(1).split('/')[1]}] ", text)
     return FILE_TAG_RE.sub("", text)
 
 
 def session_docs(raw: list, session: str, hist: int = 30, limit: int = 3) -> list:
-    """Hochgeladene Dokumente dieses Gespraechs (die neuesten zuletzt): Marken in den Nachrichten und im Verlauf."""
+    """Uploaded documents of this conversation (newest last): markers in the messages and in the history."""
     texts = []
     if session:
         try:
@@ -1074,7 +1074,7 @@ def session_docs(raw: list, session: str, hist: int = 30, limit: int = 3) -> lis
 
 
 def doc_context(rels: list, question: str, budget: int = 14000) -> str:
-    """System-Text mit dem Inhalt der Dokumente (bei langen nur die zur Frage passenden Stellen)."""
+    """System text with the content of the documents (for long ones only the passages matching the question)."""
     if not rels:
         return ""
     per = max(3000, budget // len(rels))
@@ -1108,9 +1108,9 @@ QUESTION_START = re.compile(r"^\s*(was|wie|wer|wo|wann|warum|wieso|welche\w*|wie
 
 
 def is_revision(text: str) -> bool:
-    """Aenderungswunsch an einer Datei (nicht: eine Frage ueber ihren Inhalt)."""
+    """Request to change a file (not: a question about its content)."""
     t = IMG_TAG_RE.sub("", DOC_TAG_RE.sub("", text)).strip()
-    # 04.10.: ASCII-Schreibweise (Aendere, fuege, loesche ...) wie Umlaute behandeln
+    # 04.10.: treat ASCII spelling (Aendere, fuege, loesche ...) like umlauts
     t = re.sub(r"(?<![aeiouäöü])(a|o|u)e", lambda m: {"a": "ä", "o": "ö", "u": "ü"}[m.group(1).lower()], t, flags=re.I) if re.search(r"(?i)(?<![aeiouäöü])[aou]e", t) else t
     if not REVISE_VERBS.search(t):
         return False
@@ -1120,7 +1120,7 @@ def is_revision(text: str) -> bool:
 
 
 async def web_image(query: str, directory: str, n: int):
-    """Erstes brauchbares Bild aus der Bildersuche (SearXNG) laden. -> (Pfad, Quelle) oder None."""
+    """Load the first usable image from the image search (SearXNG). -> (path, source) or None."""
     try:
         async with httpx.AsyncClient(timeout=12.0) as c:
             r = await c.get(SEARXNG_URL, params={"q": query, "format": "json", "categories": "images"})
@@ -1157,9 +1157,9 @@ AFTER_RE = re.compile(r"\b(nach|after|vor|before|zwischen|between)\b\s*(der |die
 
 
 async def edit_file(messages: list, kind: str, data: dict):
-    """Gezielte Aenderung: das 14b liefert kleine Operationen (jarvis_files.apply_ops), der Code wendet sie auf den
-    vollen Inhalt (data.json) an und baut die Datei neu. -> Antworttext mit Dateimarke, oder None bei Misserfolg
-    (dann schreibt der Aufrufer die Datei komplett neu)."""
+    """Targeted change: the 14b delivers small operations (jarvis_files.apply_ops), the code applies them to the
+    full content (data.json) and rebuilds the file. -> answer text with file marker, or None on failure
+    (then the caller rewrites the file completely)."""
     turns = [m for m in messages if m.get("role") in ("user", "assistant")][-6:]
     users = [m for m in messages if m.get("role") == "user"]
     last = str(users[-1].get("content", "")) if users else ""
@@ -1193,7 +1193,7 @@ async def edit_file(messages: list, kind: str, data: dict):
         except Exception as e:
             ops, errs = None, [f"Antwort war kein gueltiges JSON ({e})"]
         if ops is not None:
-            if END_RE.search(plain) and not AFTER_RE.search(plain):      # "am Ende": Index der Einfuegungen streichen
+            if END_RE.search(plain) and not AFTER_RE.search(plain):      # "at the end": drop the index of the insertions
                 for o in ops:
                     if isinstance(o, dict) and o.get("op") == "insert":
                         o.pop("index", None)
@@ -1243,7 +1243,7 @@ def _doc_editable(rel: str):
 
 
 def prev_file(raw: list):
-    """Folgenachricht zu einer Dateikarte oder einem hochgeladenen Word/PowerPoint/Excel? -> (id, name, kind)."""
+    """Follow-up message to a file card or an uploaded Word/PowerPoint/Excel? -> (id, name, kind)."""
     msgs = [m for m in raw if m.get("role") in ("user", "assistant")]
     if not msgs or msgs[-1].get("role") != "user":
         return None
@@ -1262,7 +1262,7 @@ def prev_file(raw: list):
 
 
 def db_prev_file(session: str):
-    """Die Verlaufsgrenze des Modells schneidet Karten/Marken oft ab -> in den letzten 16 Nachrichten der DB suchen."""
+    """The history limit of the model often cuts off cards/markers -> search the last 16 messages in the DB."""
     try:
         for m in reversed(history_load(session, 16, 100000)):
             if m["role"] == "assistant":
@@ -1288,10 +1288,10 @@ def load_base(fid: str):
 
 
 async def make_file(messages: list, kind: str, base: dict = None, docctx: str = "") -> str:
-    """Datei-Werkzeug: das 14b liefert den Inhalt als JSON, jarvis_files baut die Datei.
-    -> Antworttext mit Marke [[file:<id>/<name>|<Titel>|<typ>]], die die Oberflaeche als
-    Download-Karte mit Vorschau zeigt. Bilder: hochgeladene ([[img:...]] im Gespraech) und,
-    wenn gewuenscht, aus der Bildersuche."""
+    """File tool: the 14b delivers the content as JSON, jarvis_files builds the file.
+    -> answer text with marker [[file:<id>/<name>|<title>|<type>]], which the interface shows as a
+    download card with preview. Images: uploaded ones ([[img:...]] in the conversation) and,
+    if wanted, from the image search."""
     turns = [m for m in messages if m.get("role") in ("user", "assistant")][-8:]
     users = [m for m in messages if m.get("role") == "user"]
     last = str(users[-1].get("content", "")) if users else ""
@@ -1301,7 +1301,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
             p = os.path.join(jf.FILES_DIR, rel)
             if os.path.isfile(p) and p not in uploads:
                 uploads.append(p)
-    if base:                                              # Bilder der bisherigen Datei behalten
+    if base:                                              # keep the images of the previous file
         old = []
         for key in ("slides", "sections"):
             for it in base.get(key) or []:
@@ -1311,7 +1311,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
                         old.append(pth)
         uploads = old + [u for u in uploads if u not in old]
     uploads = uploads[-8:]
-    plain = IMG_TAG_RE.sub("", re.sub(r"\[Praezisierter Auftrag:.*", "", last, flags=re.S))   # Bildwunsch nur aus Kings Text, nicht aus dem Auftrag des Modells
+    plain = IMG_TAG_RE.sub("", re.sub(r"\[Praezisierter Auftrag:.*", "", last, flags=re.S))   # image request only from the user's text, not from the model's task
     want_web = kind != "xlsx" and bool(WANT_IMG_RE.search(plain)) and (not uploads or bool(WEB_RE.search(plain)))
     key = "slides" if kind == "pptx" else "sections"
     unit = "slide" if kind == "pptx" else "section"
@@ -1344,7 +1344,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
     if kind != "xlsx":
         items = [x for x in (data.get(key) or []) if isinstance(x, dict)]
         free = list(uploads)
-        for x in items:                                   # vom Modell zugeordnete Uploads
+        for x in items:                                   # uploads assigned by the model
             try:
                 i = int(x.get("image") or 0)
             except Exception:
@@ -1352,7 +1352,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
             if 1 <= i <= len(uploads) and uploads[i - 1] in free:
                 x["_img"] = uploads[i - 1]
                 free.remove(uploads[i - 1])
-        for x in items:                                   # uebrige Uploads der Reihe nach
+        for x in items:                                   # remaining uploads in order
             if free and not x.get("_img"):
                 x["_img"] = free.pop(0)
         if want_web:
@@ -1387,7 +1387,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
             except Exception as e:
                 print(f"[JARVIS] Excel-Reparatur FEHLER {e!r}", flush=True)
                 break
-    if kind == "xlsx" and not warn and "=" in json.dumps(data, ensure_ascii=False):     # Inhaltliche Pruefung der Formeln durch das Modell
+    if kind == "xlsx" and not warn and "=" in json.dumps(data, ensure_ascii=False):     # content check of the formulas by the model
         try:
             grid = await asyncio.to_thread(jf.xlsx_grid, os.path.join(jf.FILES_DIR, rel))
             rmsgs = [{"role": "system", "content": (
@@ -1426,7 +1426,7 @@ async def make_file(messages: list, kind: str, base: dict = None, docctx: str = 
 
 
 def _fuzzy_esc(text: str) -> bool:
-    """Tippfehler wie 'escalte', 'escalete', 'eskaliren' (nur kurze Nachrichten)."""
+    """Typos like 'escalte', 'escalete', 'eskaliren' (short messages only)."""
     if len(text) > 60:
         return False
     words = re.findall(r"[a-zäöü]{6,}", text.lower())
@@ -1435,9 +1435,9 @@ def _fuzzy_esc(text: str) -> bool:
 
 
 # ── Agent-Modus (Tool-Calling, Schritt 4) ─────────────────────────────────────
-# Bei laufendem PC entscheidet gemma4:26b selbst, welches Werkzeug es braucht (jarvis_agent.py).
-# Rueckbau ohne Neustart: Datei AGENT_MODE_FILE mit "off". Umgebungsvariable JARVIS_AGENT=on/off gilt zuerst (Testinstanz).
-TOOL_FACTS = {}          # session -> [(zeit, werkzeug, args, ergebnis)]
+# While the PC is running, gemma4:26b decides by itself which tool it needs (jarvis_agent.py).
+# Rollback without restart: file AGENT_MODE_FILE with "off". The environment variable JARVIS_AGENT=on/off applies first (test instance).
+TOOL_FACTS = {}          # session -> [(time, tool, args, result)]
 AGENT_MODE_FILE = "/var/lib/jarvis/agent_mode"
 PROFILE_FILE = "/var/lib/jarvis/profile.md"
 PROFILE_ACTIVE = "/var/lib/jarvis/profile.active"
@@ -1451,7 +1451,7 @@ def _profile_text() -> str:
     except Exception:
         return ""
 
-ANW_FILE = "/var/lib/jarvis/anweisungen.md"      # Arbeitsanweisungen des Nutzers (wie CLAUDE.md): eine Regel pro Zeile mit "- "
+ANW_FILE = "/var/lib/jarvis/anweisungen.md"      # Working instructions of the user (like CLAUDE.md): one rule per line with "- "
 ANW_MAX_RULES, ANW_MAX_LEN = 25, 220
 _ANW_CACHE = {"m": 0, "t": []}
 ANW_BAD = re.compile(r"(ignor|ueberschreib|\u00fcberschreib|override|vergiss|disregard|deaktivier|disable|abschalt).{0,60}(regel|anweisung|instruction|rule|system|sicherheit|safety|filter|bestaetig|best\u00e4tig|confirm)"
@@ -1561,9 +1561,9 @@ def _items_arg(v) -> list:
 
 
 def _shopping_add_raw(con, items: list):
-    """Fuegt Artikel in eine bereits offene Verbindung ein (tabelle existiert schon).
-    Rueckgabe (added, dup); (None, None) wenn die Liste voll waere. Einzige Stelle, die
-    tatsaechlich in die Tabelle schreibt -- Tool-Pfad und Schnellpfad rufen beide hier auf."""
+    """Inserts articles into an already open connection (table already exists).
+    Returns (added, dup); (None, None) if the list would be full. The only place that
+    actually writes into the table -- tool path and quick path both call it."""
     have = {r[0].lower() for r in con.execute("SELECT item FROM shopping")}
     if len(have) + len(items) > 300:
         return None, None
@@ -1633,15 +1633,15 @@ SHUTDOWN_RE = re.compile(
     r"|(?:gaming[- ]?)?(?:pc|rechner)\s+(?:bitte\s+)?(?:herunterfahren|runterfahren|ausschalten)"
     r"|shut\s*down\s+(?:the\s+)?(?:gaming[- ]?)?(?:pc|computer)|turn\s+off\s+(?:the\s+)?(?:gaming[- ]?)?(?:pc|computer))", re.I)
 
-# 11.10.: Zusatz -- King sagt oft nur das blanke Verb ("Ausschalten"), ohne "PC" zu wiederholen,
-# weil das Thema schon im Kontext klar ist. Ohne diese Variante faellt die Nachricht durch das
-# fest verdrahtete SHUTDOWN_RE, das Modell erraet dann die Rueckfrage als Text OHNE PENDING zu
-# setzen, und das spaetere "Ja" landet im Leeren (siehe OFFENE_PUNKTE.md).
+# 11.10.: addition -- the owner often says only the bare verb ("Ausschalten" = switch off), without repeating "PC",
+# because the topic is already clear from the context. Without this variant the message falls through the
+# hard-wired SHUTDOWN_RE, and the model then guesses the confirmation question as text WITHOUT PENDING to
+# set, and the later "Ja" (yes) goes nowhere (see OFFENE_PUNKTE.md).
 SHUTDOWN_BARE_RE = re.compile(
     r"^\s*(?:ja\s*,?\s*)?(?:bitte\s+)?(?:einfach\s+)?(?:ihn\s+|den\s+pc\s+)?"
     r"(?:ausschalten|abschalten|herunterfahren|runterfahren|shut\s*down|shutdown)\.?\s*$", re.I)
 def run_sandbox(code: str, rels: list) -> str:
-    """Python-Code in einer abgeschotteten Docker-Sandbox ausfuehren (kein Netz, ReadOnly, begrenzt). -> Ausgabe als Text."""
+    """Run Python code in an isolated Docker sandbox (no network, read-only, limited). -> output as text."""
     import tempfile, uuid
     tmp = tempfile.mkdtemp(prefix="sbx")
     data = os.path.join(tmp, "data")
@@ -1676,7 +1676,7 @@ def run_sandbox(code: str, rels: list) -> str:
             text += "\n[output truncated]"
         text = text.strip() or "(the program printed nothing; use print())"
         files = []
-        for fn in sorted(os.listdir(outd))[:5]:                  # Ergebnisdateien (Diagramme, Tabellen) einsammeln
+        for fn in sorted(os.listdir(outd))[:5]:                  # collect result files (charts, tables)
             fp = os.path.join(outd, fn)
             ext = fn.rsplit(".", 1)[-1].lower() if "." in fn else ""
             if (os.path.isfile(fp) and not os.path.islink(fp) and os.path.getsize(fp) < 10_000_000
@@ -1694,7 +1694,7 @@ def run_sandbox(code: str, rels: list) -> str:
 
 
 def _split_parts(text: str, size: int) -> list:
-    """Text an Absatzgrenzen in Teile von ca. `size` Zeichen teilen."""
+    """Split text at paragraph boundaries into parts of about `size` characters."""
     parts, cur = [], ""
     for para in re.split(r"(?<=\n)", text):
         if cur and len(cur) + len(para) > size:
@@ -1721,12 +1721,12 @@ async def _summarize_part(part: str, fokus: str = "") -> str:
     return str(r.json().get("message", {}).get("content", "")).strip()
 
 
-# Kurzbefehle fuer kleine Werkzeuge: kann jts.direct() sie nicht eindeutig lesen und der PC ist aus, wird er geweckt,
-# damit das grosse Modell das passende Werkzeug nimmt (sonst wuerde das 3b raten/rechnen).
+# Short commands for small tools: if jts.direct() cannot read them unambiguously and the PC is off, it is woken,
+# so that the large model picks the matching tool (otherwise the 3b would guess/calculate).
 SMALLTOOL_RE = re.compile(r"\b(rechne|berechne|ausrechnen|qr|passw(?:ort|ö?rter|oerter)|kennwort|w(?:ü|ue)rf\w*|m(?:ü|ue)nz\w*|zufall\w*|"
                           r"zuf(?:ä|ae)llig\w*|umrechn\w*|wechselkurs|wlan|wifi)\b", re.I)
 
-PENDING = {}                       # session (oder "_") -> {"action", "desc", "ts"}; wartet auf ein klares Ja
+PENDING = {}                       # session (or "_") -> {"action", "desc", "ts"}; waits for a clear yes
 PENDING_TTL = 120
 YES_RE = re.compile(r"^\s*(ja|jawohl|yes|yep|ok|okay|klar|genau|bitte|mach|mach es|mach das|los|bestätigt|bestaetigt|confirm|do it|go ahead|sicher)\b[\s!.,]*(?:(?:bitte|jetzt|ruhig|sir|mach(?:\s+es|\s+das)?|los|tu\s+es)[\s!.,]*)*$", re.I)
 NO_RE = re.compile(r"^\s*(nein|no|nee|stop|stopp|abbrechen|abbruch|lieber nicht|cancel|nicht)\b", re.I)
@@ -1764,7 +1764,7 @@ def _sys_status() -> str:
 
 
 async def run_pending(act: dict) -> str:
-    """Bestaetigte gefaehrliche Aktion ausfuehren. -> Antworttext."""
+    """Execute a confirmed dangerous action. -> answer text."""
     if act["action"] == "pc_ausschalten":
         try:
             try:
@@ -1864,7 +1864,7 @@ ANW_VERB_RE = re.compile(r"\b(antwort\w*|schreib\w*|sag\w*|nenn\w*|duz\w*|dutz\w
 
 
 def _anw_wish(last: str, session: str):
-    """Klare Dauerwuensche ("Ab jetzt ...") ohne Modell: Regel = Originalsatz, die Rueckfrage kommt aus dem Code. -> Text oder None."""
+    """Clear standing wishes ("Ab jetzt ..." = from now on) without a model: rule = original sentence, the confirmation question comes from the code. -> text or None."""
     t = re.sub(r"\s+", " ", strip_tags(last)).strip()
     if not (ANW_WISH_RE.search(t) and ANW_VERB_RE.search(t)) or len(t) > 240 or "?" in t:
         return None
@@ -1888,7 +1888,7 @@ async def _canned(text: str):
 
 
 async def _icloud_tool(name: str, args: dict, session: str, last: str) -> dict:
-    """iCloud: Kalender/Mail/Briefing. Lesen frei; Eintragen/Loeschen nur als Rueckfrage (PENDING), ausgefuehrt in run_pending."""
+    """iCloud: calendar/mail/briefing. Reading is free; creating/deleting only as a confirmation question (PENDING), executed in run_pending."""
     import jarvis_icloud as ic
     import jarvis_brief as jb
     import datetime as _dt
@@ -2004,9 +2004,9 @@ async def _icloud_tool(name: str, args: dict, session: str, last: str) -> dict:
     return {"text": "Unknown tool."}
 
 
-# --- Recherche-Modus (King, 06.10.): mehrschrittige, selbstaendige Recherche im Hintergrund ---
-# Laeuft NICHT im normalen Chat-Takt (blockiert die Antwort nicht), nur lesende Werkzeuge,
-# Ergebnis geht in die Wissensbasis + Push. Kein Schreiben außerhalb der eigenen Wissensbasis.
+# --- Research mode (owner decision, 06.10.): multi-step, autonomous research in the background ---
+# Does NOT run in the normal chat rhythm (does not block the answer), read-only tools only,
+# the result goes into the knowledge base + push. No writing outside the own knowledge base.
 RESEARCH_TOOL_NAMES = {"websuche", "webseite_lesen", "dokument_lesen", "dokument_zusammenfassen", "python_ausfuehren"}
 RESEARCH_SYSTEM = (
     "You are JARVIS, researching a topic thoroughly and independently in the background for the user. "
@@ -2017,7 +2017,7 @@ RESEARCH_SYSTEM = (
     "a short standalone document, not as a reply to a person."
 )
 _RESEARCH_JOBS = {}     # job_id -> {"thema","status","created","doc_id"?,"fehler"?}
-_RESEARCH_TASKS = set()  # haelt laufende asyncio-Tasks am Leben (sonst evtl. GC)
+_RESEARCH_TASKS = set()  # keeps running asyncio tasks alive (otherwise possibly garbage-collected)
 
 
 def _research_push(title: str, msg: str):
@@ -2097,7 +2097,7 @@ def make_executor(raw: list, session: str, last: str):
     docs = session_docs(raw, session)
     pf = prev_file(raw) or (db_prev_file(session) if session else None)
     conv = [dict(m) for m in raw if m.get("role") in ("user", "assistant")]
-    gathered = []        # Ergebnisse aus Websuche/Dokumenten: gehen in die Dateierstellung ein
+    gathered = []        # results from web search/documents: they flow into the file creation
 
     def conv_with(auftrag: str) -> list:
         c = [dict(m) for m in conv]
@@ -2181,7 +2181,7 @@ def make_executor(raw: list, session: str, last: str):
                     out.append(f"=== {nm}: no readable text ===")
                     continue
                 parts = _split_parts(txt, 11000)
-                if len(parts) > 16:                       # sehr lange Dokumente: gleichmaessig 16 Teile
+                if len(parts) > 16:                       # very long documents: 16 evenly spaced parts
                     step = len(parts) / 16.0
                     parts = [parts[int(i * step)] for i in range(16)]
                     note = " (very long: 16 evenly spread parts were read)"
@@ -2359,7 +2359,7 @@ def make_executor(raw: list, session: str, last: str):
 
 
 async def agent_path(raw: list, session: str, last: str, stream: bool):
-    """-> Async-Generator (stream) oder Text (nicht stream). Wirft, wenn schon die erste Runde scheitert."""
+    """-> async generator (stream) or text (not stream). Raises if even the first round fails."""
     pend = PENDING.pop(session or "_", None)
     if pend and time.monotonic() - pend["ts"] <= PENDING_TTL:
         if YES_RE.match(strip_tags(last)):
@@ -2368,19 +2368,19 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
         if NO_RE.match(strip_tags(last)):
             txt = "Verstanden, Sir, abgebrochen." if not _is_english(last) else "Understood, Sir, cancelled."
             return _canned(txt) if stream else txt
-        # etwas anderes gesagt: die Rueckfrage verfaellt, normal weiter
+        # said something else: the confirmation question lapses, carry on as normal
     _aw = _anw_wish(last, session)
     if _aw:
         return _canned(_aw) if stream else _aw
-    if (SHUTDOWN_RE.search(strip_tags(last)) or SHUTDOWN_BARE_RE.match(strip_tags(last))) and len(last) < 200:      # fest verdrahtet: Rueckfrage kommt aus dem Code, nicht vom Modell
+    if (SHUTDOWN_RE.search(strip_tags(last)) or SHUTDOWN_BARE_RE.match(strip_tags(last))) and len(last) < 200:      # hard-wired: the confirmation question comes from the code, not from the model
         PENDING[session or "_"] = {"action": "pc_ausschalten", "ts": time.monotonic()}
         txt = ("Soll ich den Gaming-PC wirklich herunterfahren, Sir? Danach laeuft nur noch das kleine Modell. Mit Ja bestaetigen."
                if not _is_english(last) else "Shall I really shut down the Gaming-PC, Sir? Afterwards only the small model remains. Confirm with yes.")
         return _canned(txt) if stream else txt
     _psm = PORTSCAN_RE.search(strip_tags(last))
     if _psm and len(last) < 200:
-        # 11.10.: fest verdrahtet wie SHUTDOWN_RE oben -- das Modell "erraet" sonst die Rueckfrage als
-        # Text, OHNE das Werkzeug aufzurufen (PENDING wird dann nie gesetzt, "Ja" fuehrt zu nichts).
+        # 11.10.: hard-wired like SHUTDOWN_RE above -- otherwise the model "guesses" the confirmation question as
+        # text WITHOUT calling the tool (PENDING is then never set, "Ja" leads nowhere).
         import jarvis_security as _js
         _txt = strip_tags(last)
         _m = _IP_RE.search(_txt)
@@ -2407,10 +2407,10 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
                    if not _is_english(last) else
                    f"Shall I really run a {_art} port scan on {_ip}, Sir? Confirm with yes.")
             return _canned(txt) if stream else txt
-        # kein Ziel erkannt (z.B. nur "mach einen portscan" ohne IP/Name) -> Modell soll nachfragen
+        # no target recognised (e.g. only "mach einen portscan" without IP/name) -> the model should ask back
     execute, docs, pf = make_executor(raw, session, last)
     _ex0 = execute
-    async def execute(name, args, _ex0=_ex0):                      # Ergebnisse merken: der Verlauf enthaelt sonst nur den Antworttext
+    async def execute(name, args, _ex0=_ex0):                      # remember results: the history otherwise only contains the answer text
         res = await _ex0(name, args)
         try:
             if name in ("wetter", "system_status", "websuche", "python_ausfuehren", "dokument_zusammenfassen", "datei_erstellen", "datei_aendern"):
@@ -2423,7 +2423,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
             pass
         return res
     mm = MEMO_RE.match(strip_tags(last)) if len(last) < 450 else None
-    if mm:        # Notiz-Befehl fest verdrahtet: das Modell darf kein "gespeichert" behaupten, ohne dass es passiert ist
+    if mm:        # note command hard-wired: the model must not claim "gespeichert" (saved) without it having happened
         note = mm.group(1).strip()
         await execute("notiz_speichern", {"text": note})
         print(f"[JARVIS] Notiz gespeichert (Regel): {note[:80]!r}", flush=True)
@@ -2433,7 +2433,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
         return txt
     _plain = strip_tags(last)
     tm = TIMER_RE.match(_plain) if len(last) < 150 and "?" not in last else None
-    if tm:          # Timer fest verdrahtet: klare Zahl+Einheit, kein Modell-Umweg noetig
+    if tm:          # timer hard-wired: clear number + unit, no detour via the model needed
         _mg = tm.group("mins_a") or tm.group("mins_b") or tm.group("mins_c") or tm.group("mins_d")
         try:
             tmins = float(_mg)
@@ -2452,9 +2452,9 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
             if stream:
                 return _canned(txt)
             return txt
-        # Zahl ausserhalb des erlaubten Bereichs oder nicht lesbar: normal weiter (Agent soll nachfragen)
+        # number outside the allowed range or not readable: carry on as normal (the agent should ask back)
     em = EINKAUF_WISH_RE.match(_plain) if len(last) < 220 and "?" not in last else None
-    if em:          # Einkaufsliste hinzufuegen fest verdrahtet: klares Muster, kein Modell-Umweg noetig
+    if em:          # adding to the shopping list hard-wired: clear pattern, no detour via the model needed
         raw_items = em.group("items1") or em.group("items2") or em.group("items3") or ""
         items = _items_arg(raw_items)
         if items:
@@ -2486,7 +2486,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
             if stream:
                 return _canned(txt)
             return txt
-        # keine Artikel erkannt: normal weiter (Agent soll nachfragen)
+        # no items recognised: carry on as normal (the agent should ask back)
     extra = ""
     if docs:
         extra += "\nUploaded documents in this conversation (read them with dokument_lesen): " + ", ".join(d.split("/")[1] for d in docs) + "."
@@ -2497,7 +2497,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
         extra += ("\nResults of tools you called in EARLIER turns of this conversation (the user cannot see them; they may be outdated - "
                   "for current values call the tool again):\n" + "\n".join(
                       f"- {time.strftime('%H:%M', time.localtime(t))} {n} {a}: {x}" for t, n, a, x in _fl))
-    try:                       # persoenliches Profil (nur aktiv, wenn King es bestaetigt hat: profile.active), nie im Privat-Chat
+    try:                       # personal profile (only active once the owner has confirmed it: profile.active), never in the private chat
         if os.path.exists(PROFILE_ACTIVE):
             _pt = _profile_text()
             if _pt:
@@ -2505,7 +2505,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
                           "do not guess anything beyond them, ask instead:\n" + _pt)
     except Exception as e:
         print(f"[JARVIS] Profil lesen FEHLER {e!r}", flush=True)
-    try:                       # Notizen ("Merk dir ...") stehen immer im Kontext (die letzten, max. ca. 1500 Zeichen)
+    try:                       # notes ("Merk dir ..." = remember ...) are always in the context (the latest ones, max. about 1500 characters)
         con = _notes_db()
         _rows = con.execute("SELECT text FROM notes ORDER BY id DESC LIMIT 20").fetchall()
         con.close()
@@ -2520,7 +2520,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
                       + "\n- ".join(reversed(_notes)))
     except Exception as e:
         print(f"[JARVIS] Notizen lesen FEHLER {e!r}", flush=True)
-    try:                       # Arbeitsanweisungen des Nutzers (anweisungen.md), nie im Privat-Chat
+    try:                       # working instructions of the user (anweisungen.md), never in the private chat
         _ar = _anw_rules()
         if _ar:
             extra += ("\nStanding instructions from the user (his own rules for your language, form of address, length and style; follow them in every reply. "
@@ -2532,7 +2532,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
     sysmsgs = [{"role": "system", "content": AGENT_SYSTEM.format(now=now_str(), extra=extra)}]
     others = [m for m in raw if m.get("role") == "system" and m.get("content") != JARVIS_SYSTEM]
     def _client_sys(c: str) -> str:
-        # Voice-Proxy: "keine Live-Daten raten" widerspricht den Werkzeugen -> nur Zeit und Formatregel behalten
+        # voice proxy: "do not guess live data" contradicts the tools -> keep only time and format rule
         if "may be provided to you in a separate system message" in c:
             keep = c.split(" Web search results or weather data")[0]
             if "no **bold**" in c:
@@ -2542,7 +2542,7 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
     sysmsgs += [{"role": "system", "content": _client_sys(str(m.get("content", "")))[:4000]} for m in others]
     turns = [{"role": m["role"], "content": strip_tags(m.get("content", ""))[:4000]}
              for m in raw if m.get("role") in ("user", "assistant")][-20:]
-    # Bilder (Vision): hochgeladene Bilder der letzten Nutzernachrichten direkt ans Modell (gemma4 kann Bilder)
+    # images (vision): uploaded images of the latest user messages go straight to the model (gemma4 can read images)
     import base64 as _b64
     _raw_turns = [m for m in raw if m.get("role") in ("user", "assistant")][-20:]
     _nimg = 0
@@ -2594,8 +2594,8 @@ async def agent_path(raw: list, session: str, last: str, stream: bool):
 
 
 # ---------------------------------------------------------------------------
-# Einmal-Chat (ephemeral): nichts wird gespeichert, kein Zugriff auf Mail/Kalender/Kontakte/Notizen/Erinnerungen/Server.
-# Der Verlauf liegt nur im Browser (der Client schickt ihn bei jeder Anfrage mit). Dateien dieses Chats werden beim Verlassen geloescht.
+# one-time chat (ephemeral): nothing is stored, no access to mail/calendar/contacts/notes/reminders/server.
+# The history lives only in the browser (the client sends it with every request). Files of this chat are deleted when leaving.
 # ---------------------------------------------------------------------------
 EPH_TOOL_NAMES = {"websuche", "webseite_lesen", "wetter", "dokument_lesen", "dokument_zusammenfassen", "python_ausfuehren",
                   "datei_erstellen", "datei_aendern", "bild_erzeugen"}
@@ -2623,7 +2623,7 @@ Your tools (use them like a competent assistant):
 {extra}"""
 
 
-EPH_TOOL_NAMES = set(EPH_TOOL_NAMES) | set(jts.NAMES)        # zustandslose Kleinwerkzeuge auch im Privat-Chat
+EPH_TOOL_NAMES = set(EPH_TOOL_NAMES) | set(jts.NAMES)        # stateless small tools also in the private chat
 
 
 async def eph_agent_path(raw: list, eid: str, last: str, stream: bool):
@@ -2745,8 +2745,8 @@ async def chat(request: Request):
     pc_up = await pc_is_online(max_age=20)
 
 
-    # Gespraechsverlauf: nur fuer Clients, die eine Session nennen und keinen eigenen
-    # Verlauf mitschicken (Voice). Open WebUI schickt den Verlauf selbst.
+    # conversation history: only for clients that name a session and do not send their own
+    # history (voice). Open WebUI sends the history itself.
     session = str(body.get("session") or request.headers.get("x-jarvis-session") or "")[:64]
     user_text = ""
     if session and not task:
@@ -2787,8 +2787,8 @@ async def chat(request: Request):
         return reply(text + suffix, model, stream)
 
     if not task:
-        # Kleine Werkzeuge und Spiele: eindeutige Kurzbefehle direkt im Code beantworten, ohne Modell (auch bei PC aus).
-        # Eine offene Ja/Nein-Rueckfrage hat Vorrang.
+        # Small tools and games: answer unambiguous short commands directly in code, without a model (also while the PC is off).
+        # An open yes/no confirmation question takes precedence.
         _u0 = [m for m in raw if m.get("role") == "user"]
         _l0 = strip_tags(str(_u0[-1].get("content", ""))) if _u0 else ""
         _p0 = PENDING.get(session or "_")
@@ -2820,7 +2820,7 @@ async def chat(request: Request):
                          else "Ich wecke den Gaming-PC, Sir. Er ist in etwa einer Minute online.",
                          "system")
         if not pc_up and agent_mode_on() and (KALMAIL_RE.search(_last) or IMG_REQ_RE.search(_last) or URL_RE.search(_last)):
-            # Kalender/Mail/Briefing gibt es nur als Agent-Werkzeug -> PC wecken, sonst wuerde das 3b ohne Werkzeug raten
+            # calendar/mail/briefing exist only as an agent tool -> wake the PC, otherwise the 3b would guess without a tool
             print("[JARVIS] Kalender/Mail ohne PC -> PC wecken", flush=True)
             if await wake_and_wait():
                 pc_up = True
@@ -2844,7 +2844,7 @@ async def chat(request: Request):
         _docs_recent = session_docs(raw, session, hist=8)
         _pf = (prev_file(raw) or (db_prev_file(session) if session else None)) if not _kind else None
         if _pf and len(_last) < 300 and is_revision(_last) and not WAKE_RE.search(_last):
-            _kind = jf.file_kind("mach " + _last) or _pf[2]       # "als Word Datei" wechselt den Typ
+            _kind = jf.file_kind("mach " + _last) or _pf[2]       # "als Word Datei" (as a Word file) changes the type
             _base = load_base(_pf[0])
             print(f"[JARVIS] Folgenachricht zu Datei {_pf[0]} -> {_kind}", flush=True)
         if not pc_up and (_kind or _docs_recent or ESC_RE.search(_last) or BUILD_RE.search(_last) or _fuzzy_esc(_last) or SMALLTOOL_RE.search(_last)):
@@ -2853,7 +2853,7 @@ async def chat(request: Request):
                 pc_up = True
                 _pc_cache.update(t=time.monotonic(), up=True)
         if _kind:
-            # Word / Excel / PowerPoint / PDF erzeugen (braucht das 14b)
+            # create Word / Excel / PowerPoint / PDF (needs the 14b)
             if not pc_up:
                 return finish("Dafür brauche ich den Gaming-PC, Sir, und er antwortet nicht.", "system")
             print(f"[JARVIS] Datei-Werkzeug: {_kind}", flush=True)
@@ -2880,13 +2880,13 @@ async def chat(request: Request):
                else m for m in raw]
     messages = raw if task else inject_system(raw)
 
-    # Tools: Wetter / Websuche (nicht fuer Hilfsanfragen von Open WebUI)
+    # tools: weather / web search (not for helper requests from Open WebUI)
     src = ""
     searched = False
     if not task:
         extra = [{"role": "system", "content": f"Current date and time (Europe/Zurich): {now_str()}."}]
         _dq = _last
-        _dd = _docs_recent                                  # vor strip_tags ermittelt (dort sind die Marken schon weg)
+        _dd = _docs_recent                                  # determined before strip_tags (the markers are already gone there)
         if _dd:
             extra.append({"role": "system", "content": doc_context(_dd, _dq, 14000 if pc_up else 3500)})
             print(f"[JARVIS] Dokumente im Kontext: {', '.join(d.split('/')[1] for d in _dd)}", flush=True)
@@ -2899,10 +2899,10 @@ async def chat(request: Request):
             searched = True
             extra.append({"role": "system", "content": ctx[0]})
             src = ctx[1]
-        # hinter die erste System-Nachricht, vor den Verlauf
+        # after the first system message, before the history
         messages = messages[:1] + extra + messages[1:]
 
-    # PC laeuft schon -> alles direkt ans 14b (GPU). Geweckt wird er hier nicht.
+    # PC is already running -> everything straight to the 14b (GPU). It is not woken here.
     if pc_up:
         print(f"[JARVIS] PC online -> 14b direkt ({'Task' if task else 'Chat'})", flush=True)
         if stream:
@@ -2918,10 +2918,10 @@ async def chat(request: Request):
         print("[JARVIS] Task-Anfrage (Open WebUI) -> 3b direkt, keine Eskalation", flush=True)
         return reply(await ask_small(raw) or "", SMALL_MODEL, stream)
 
-    # Mit Tool-Ergebnissen antwortet das 3b selbst (ohne ESCALATE-Prompt, weckt den PC nicht)
+    # With tool results the 3b answers by itself (without the ESCALATE prompt, does not wake the PC)
     if searched:
         if len(ctx) > 2 and ctx[2]:
-            # Wetter ohne PC: Antwort steht schon fest (aus den Daten gebaut, ohne Modell)
+            # weather without the PC: the answer is already fixed (built from the data, without a model)
             print("[JARVIS] Wetter direkt aus den Daten (ohne Modell)", flush=True)
             return finish(ctx[2], "open-meteo", src)
         ans = await ask_small(swap_system_for_large(messages))
@@ -3005,14 +3005,14 @@ async def api_conversations_delete(request: Request):
     return {"ok": ok, "was_current": was_cur}
 
 
-# ── Gaming-PC: Status, Wecken, Ausschalten (fuer die Oberflaeche) ──────────────
+# ── Gaming PC: status, waking, shutting down (for the interface) ──────────────
 PC_HOST = "192.168.1.100"
 PC_SSH = ["ssh", "-i", "/root/.ssh/n8n_wol_key_rsa", "-o", "IdentitiesOnly=yes",
           "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", f"user@{PC_HOST}"]
 
 
 async def pc_host_up() -> bool:
-    """Laeuft der PC ueberhaupt (SSH-Port offen), auch wenn Ollama nicht antwortet?"""
+    """Is the PC running at all (SSH port open), even if Ollama does not answer?"""
     try:
         _, w = await asyncio.wait_for(asyncio.open_connection(PC_HOST, 22), timeout=1.0)
         w.close()
@@ -3036,7 +3036,7 @@ async def api_pc_wake():
 
 @app.post("/api/pc/shutdown")
 async def api_pc_shutdown():
-    # /t 5: der Befehl kehrt sofort zurueck, die SSH-Sitzung haengt nicht im Shutdown
+    # /t 5: the command returns immediately, the SSH session does not hang in the shutdown
     try:
         r = await asyncio.to_thread(subprocess.run, PC_SSH + ["shutdown /s /t 5"],
                                     capture_output=True, timeout=15)
@@ -3051,8 +3051,8 @@ async def api_pc_shutdown():
 
 @app.post("/api/history/truncate")
 async def api_history_truncate(request: Request):
-    """Nachricht bearbeiten: loescht ab der (back+1)-letzten Nutzernachricht alles im
-    laufenden Gespraech. Danach schickt die Oberflaeche den geaenderten Text neu."""
+    """Edit message: deletes everything in the current conversation from the (back+1)-th last user message on.
+    Afterwards the interface resends the changed text."""
     body = await request.json()
     full = resolve_session(str(body.get("session") or "")[:64])
     back = max(0, int(body.get("back") or 0))
@@ -3086,7 +3086,7 @@ async def api_history_reset(request: Request):
             history_reset(session)
             _last_place.pop(session, None)
         else:
-            conv_new(session)          # neues Gespraech, das alte bleibt in der Liste
+            conv_new(session)          # new conversation, the old one stays in the list
     except Exception as e:
         return JSONResponse({"error": repr(e)}, status_code=500)
     print(f"[JARVIS] Verlauf: neues Gespraech (session={session})", flush=True)
@@ -3096,8 +3096,8 @@ async def api_history_reset(request: Request):
 @app.post("/api/embed")
 @app.post("/api/embeddings")
 async def embed(request: Request):
-    """Embeddings: immer Laptop (CPU). nomic-embed-text liegt nur dort; auf dem PC fehlt es und die 16-GB-Karte
-    ist mit gemma4:26b voll (04.10.)."""
+    """Embeddings: always laptop (CPU). nomic-embed-text only exists there; on the PC it is missing and the 16 GB card
+    is full with gemma4:26b (04.10.)."""
     body = await request.json()
     path = request.url.path
     bases = [LAPTOP_OLLAMA]
@@ -3135,15 +3135,15 @@ async def tags():
 
 @app.get("/api/monitor")
 async def api_monitor(hours: float = 24):
-    """Monitoring-Daten fuer die Monitoring-Seite (voice_proxy /monitor/data)."""
+    """Monitoring data for the monitoring page (voice_proxy /monitor/data)."""
     rep = await asyncio.to_thread(jmx.report, hours)
     ser = await asyncio.to_thread(jmx.series, hours)
     return {"report": rep, "series": ser}
 
 
 class _ChatTiming:
-    """Reine ASGI-Middleware (kein BaseHTTPMiddleware: das wuerde die Kontextvariablen der Anfrage trennen):
-    misst bei /api/chat die Zeit bis zum ersten Antwortteil und schreibt sie ins Monitoring."""
+    """Pure ASGI middleware (no BaseHTTPMiddleware: it would separate the context variables of the request):
+    for /api/chat it measures the time to the first part of the answer and writes it to the monitoring."""
     def __init__(self, app_):
         self.app = app_
 

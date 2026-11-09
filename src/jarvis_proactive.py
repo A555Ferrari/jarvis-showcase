@@ -1,8 +1,8 @@
-"""Proaktive Hinweise, Stufe 'Mittel' (King, 05./06.10.): frueher Termin -> Schlafen-Hinweis,
-Wetter vor dem ersten Termin, wichtige Mail (nur wenn VIP-Liste gepflegt ist).
-Kritische Infra-Meldungen und faellige Erinnerungen laufen unveraendert ueber jarvis_watch.py -
-dieses Modul ist nur fuer die zusaetzlichen, freiwilligen Hinweise.
-Harte Grenzen: max. PROACTIVE_MAX_PER_DAY Pushes/Tag insgesamt, Ruhezeit 22:00-06:30 lokal."""
+"""Proactive hints, level 'medium' (owner decision, 05/06.10.): early appointment -> sleep hint,
+weather before the first appointment, important mail (only if a VIP list is maintained).
+Critical infra alerts and due reminders continue to run unchanged via jarvis_watch.py -
+this module is only for the additional, optional hints.
+Hard limits: max. PROACTIVE_MAX_PER_DAY pushes per day in total, quiet hours 22:00-06:30 local."""
 import json
 import os
 import datetime as dt
@@ -15,9 +15,9 @@ import jarvis_brief as jb
 TZ = ZoneInfo("Europe/Zurich")
 STATE = "/var/lib/jarvis/proactive_state.json"
 MAIL_SEEN_FILE = "/var/lib/jarvis/proactive_mail_seen.json"
-VIP_FILE = "/var/lib/jarvis/vip_senders.json"   # [{"match": "textteil in Absender/Betreff", "grund": "..."}], leer = Feature aus
+VIP_FILE = "/var/lib/jarvis/vip_senders.json"   # [{"match": "part of sender/subject", "grund": "..."}], empty = feature off
 PROACTIVE_MAX_PER_DAY = 5
-QUIET_START, QUIET_END = 22, 6.5                # 22:00-06:30 lokal: keine NEUEN Hinweise dieser Art
+QUIET_START, QUIET_END = 22, 6.5                # 22:00-06:30 local: no NEW hints of this kind
 
 
 def _load():
@@ -56,8 +56,8 @@ def _mark_sent(s, key):
 
 
 def check(push, log=lambda *a: None):
-    """push(title, msg, prio, tags) -> bool, wie in jarvis_watch.py. Faengt eigene Fehler selbst ab,
-    damit die Haupt-Waechter-Schleife davon nie unterbrochen wird."""
+    """push(title, msg, prio, tags) -> bool, as in jarvis_watch.py. Catches its own errors,
+    so the main watchdog loop is never interrupted by it."""
     now = dt.datetime.now(TZ)
     s = _load()
     if _in_quiet_hours(now):
@@ -94,7 +94,7 @@ def _check_weather_before_appt(now, s, push):
     key = "wetter:" + now.strftime("%F")
     if not _can_send(s, key):
         return
-    if not (6 <= now.hour <= 9):          # nur morgens relevant, einmal pro Tag
+    if not (6 <= now.hour <= 9):          # only relevant in the morning, once per day
         return
     ev = [e for e in ic.events_between(now.replace(hour=0, minute=0, second=0, microsecond=0),
                                         now.replace(hour=23, minute=59, second=59, microsecond=0))
@@ -126,7 +126,7 @@ def _vip_rules():
 def _check_important_mail(now, s, push):
     rules = _vip_rules()
     if not rules:
-        return          # Feature bewusst aus, solange King keine VIP-Liste anlegt (kein Rauschen ohne Filter)
+        return          # feature deliberately off as long as no VIP list is set up (no noise without a filter)
     try:
         with open(MAIL_SEEN_FILE) as f:
             seen = set(json.load(f))

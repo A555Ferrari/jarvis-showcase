@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 JARVIS Voice Proxy v1.1
-Port 11436 — STT (Whisper base) -> LLM (Routing Proxy) -> TTS (Piper)
-Nimmt Audio (binaer, 16k mono PCM) ODER Text (JSON) entgegen.
+Port 11436 — STT (Whisper base) -> LLM (routing proxy) -> TTS (Piper)
+Accepts audio (binary, 16k mono PCM) OR text (JSON).
 """
 
 import asyncio
@@ -29,15 +29,15 @@ import jarvis_kb as jkb
 
 ROUTING_PROXY_URL = "http://localhost:11435/api/chat"
 ROUTING_PROXY     = "http://localhost:11435"
-SESSION           = "voice"     # Gespraechsverlauf dieser Oberflaeche im Routing-Proxy
-LAST_MODEL        = ""          # Modell der letzten Antwort (fuer die Anzeige)
-LAST_STT          = "laptop"    # wer die letzte Aufnahme erkannt hat: "pc" oder "laptop"
+SESSION           = "voice"     # conversation history of this interface in the routing proxy
+LAST_MODEL        = ""          # model of the last answer (for the display)
+LAST_STT          = "laptop"    # who recognised the last recording: "pc" or "laptop"
 PIPER_BIN         = "/opt/jarvis/piper/piper/piper"
 PIPER_MODEL_DE    = "/opt/jarvis/piper/de_DE-thorsten-high.onnx"
 PIPER_MODEL_EN    = "/opt/jarvis/piper/en_GB-jenny_dioco-medium.onnx"
-WHISPER_SIZE      = "base"          # Fallback auf der Laptop-CPU
-# STT auf dem Gaming-PC (large-v3-turbo, GPU), erreichbar ueber den SSH-Tunnel
-# jarvis-stt-tunnel.service. PC aus -> Port zu -> sofort Fallback auf den Laptop.
+WHISPER_SIZE      = "base"          # fallback on the laptop CPU
+# STT on the gaming PC (large-v3-turbo, GPU), reachable through the SSH tunnel
+# jarvis-stt-tunnel.service. PC off -> port closed -> immediate fallback to the laptop.
 PC_STT_URL        = "http://127.0.0.1:18765/transcribe"
 SAMPLE_RATE       = 16000
 PIPER_SAMPLE_RATE = 22050
@@ -63,7 +63,7 @@ JARVIS_FIX = re.compile(
 
 
 def transcribe_pc(wav_path):
-    """STT auf dem Gaming-PC. -> Text, oder None wenn der PC nicht erreichbar ist."""
+    """STT on the gaming PC. -> text, or None if the PC is not reachable."""
     global LAST_STT
     try:
         with open(wav_path, "rb") as f:
@@ -78,22 +78,22 @@ def transcribe_pc(wav_path):
             return JARVIS_FIX.sub("Jarvis", d["text"])
         print(f"[voice_proxy] STT PC HTTP {r.status_code} -> Laptop", flush=True)
     except httpx.ConnectError:
-        pass                      # PC aus / Tunnel zu: normaler Fall
+        pass                      # PC off / tunnel closed: normal case
     except Exception as e:
         print(f"[voice_proxy] STT PC FEHLER {e!r} -> Laptop", flush=True)
     return None
 
 
 def transcribe(wav_path):
-    """STT: nur de/en zur Wahl, Hotword 'Jarvis', Namens-Korrektur.
-    Erst Gaming-PC (GPU, grosses Modell), sonst Whisper base auf dem Laptop."""
+    """STT: only de/en to choose from, hotword 'Jarvis', name correction.
+    First the gaming PC (GPU, large model), otherwise Whisper base on the laptop."""
     global LAST_STT
     text = transcribe_pc(wav_path)
     if text is not None:
         return text
     LAST_STT = "laptop"
-    # Sprache schaetzen, aber nur zwischen Deutsch und Englisch entscheiden.
-    # Englisch muss klar vorne liegen, sonst Deutsch (Schweizer Akzent!).
+    # Estimate the language, but only decide between German and English.
+    # English has to be clearly ahead, otherwise German (Swiss accent!).
     _, info = whisper_model.transcribe(wav_path, language=None, beam_size=1)
     probs = dict(info.all_language_probs or [])
     p_de, p_en = probs.get("de", 0.0), probs.get("en", 0.0)
@@ -118,14 +118,14 @@ def split_into_sentences(text):
 
 
 def clean_for_display(text):
-    """Das Voice-UI zeigt reinen Text: Markdown-Zeichen entfernen."""
+    """The voice UI shows plain text: strip Markdown characters."""
     t = re.sub(r"\*\*|__|`", "", text)
     t = re.sub(r"(^|\s)#{1,6}\s+", r"\1", t)
     return t
 
 
 def clean_for_tts(text):
-    """Markdown und Sonderzeichen raus, die Piper sonst vorliest."""
+    """Remove Markdown and special characters that Piper would otherwise read aloud."""
     t = re.sub(r"[*_`#>|]", "", text)
     t = re.sub(r"\s+", " ", t)
     return t.strip()
@@ -158,7 +158,7 @@ def synthesize_to_wav_bytes(text):
     if not text:
         return None
     if detect_lang(text) != "en":
-        return None   # deutsche Antworten nur als Text
+        return None   # German answers as text only
     model = PIPER_MODEL_EN
     result = subprocess.run(
         [PIPER_BIN, "--model", model, "--length_scale", "1.05", "--noise_scale", "0.9", "--noise_w", "1.0", "--output-raw"],
@@ -177,7 +177,7 @@ def synthesize_to_wav_bytes(text):
     return buf.getvalue()
 
 
-# Suche, Wetter und Verlauf liefert der Routing-Proxy. Ohne Tool-Daten: nicht raten.
+# Search, weather and history come from the routing proxy. Without tool data: do not guess.
 NO_LIVE_DATA_CTX = (
     " Web search results or weather data may be provided to you in a separate system message. If none are "
     "provided and the user asks for live data (weather, news, prices, scores), do NOT guess: "
@@ -198,7 +198,7 @@ async def stream_llm_response(user_text):
             {"role": "user", "content": user_text},
         ],
         "stream": True,
-        # Der Routing-Proxy fuehrt den Gespraechsverlauf (SQLite) fuer diese Session
+        # The routing proxy keeps the conversation history (SQLite) for this session
         "session": SESSION,
     }
     async with httpx.AsyncClient(timeout=300.0) as client:
@@ -223,8 +223,8 @@ async def stream_llm_response(user_text):
 
 
 async def _send(websocket, obj):
-    """Senden ohne Abbruch: ist der Browser weg, laeuft die Anfrage trotzdem zu Ende,
-    damit die Antwort im Verlauf landet und nachgeladen werden kann."""
+    """Send without abort: if the browser is gone, the request still runs to the end,
+    so the answer ends up in the history and can be loaded later."""
     try:
         await websocket.send_json(obj)
     except Exception:
@@ -248,7 +248,7 @@ async def run_pipeline(websocket, user_text, speak=True, stt=None):
 
     buffer = ""
     full_response = ""
-    in_code = False      # innerhalb eines ```-Blocks: anzeigen, aber nicht vorlesen
+    in_code = False      # inside a ``` block: show, but do not read aloud
 
     async def say(sentence):
         nonlocal in_code
@@ -261,8 +261,8 @@ async def run_pipeline(websocket, user_text, speak=True, stt=None):
             if wav_out:
                 await _sendb(websocket, wav_out)
 
-    # Lebenszeichen, solange noch nichts kommt (PC faehrt hoch, Datei wird gebaut):
-    # ohne Verkehr trennt die Verbindung nach rund einer Minute.
+    # sign of life while nothing is coming yet (PC is booting, file is being built):
+    # without traffic the connection drops after about a minute.
     async def keepalive():
         try:
             for _ in range(40):      # hoechstens gut 5 Minuten
@@ -276,7 +276,7 @@ async def run_pipeline(websocket, user_text, speak=True, stt=None):
         ka.cancel()
         buffer += chunk
         full_response += chunk
-        # Anzeige: Text sofort und unveraendert (Zeilenumbrueche bleiben erhalten)
+        # display: text immediately and unchanged (line breaks are kept)
         await _send(websocket, {"type": "text_delta", "value": chunk})
         sentences = split_into_sentences(buffer)
 
@@ -296,8 +296,8 @@ async def run_pipeline(websocket, user_text, speak=True, stt=None):
     })
 
 
-# ── Einmal-Chat (Privat-Chat): nichts wird gespeichert, Dateien verschwinden beim Verlassen ──
-EPH_GRACE_S = 300          # so lange nach einem Verbindungsabbruch bleiben die Dateien (kurzer Netz-Aussetzer)
+# ── One-time chat (private chat): nothing is stored, files disappear when leaving ──
+EPH_GRACE_S = 300          # for this long after a dropped connection the files are kept (short network hiccup)
 EPH_END_TASKS = {}
 
 
@@ -330,8 +330,8 @@ def eph_schedule_end(eid):
 
 @app.on_event("startup")
 async def _eph_startup_sweep():
-    """Nach einem Neustart sind die Abbau-Timer weg: alle noch registrierten Privat-Chats laufen nach der Schonfrist ab
-    (ein Tab, der sich neu verbindet, meldet sich mit eph_hello und bricht das ab)."""
+    """After a restart the teardown timers are gone: all still registered private chats expire after the grace period
+    (a tab that reconnects reports with eph_hello and cancels that)."""
     try:
         for f in os.listdir(jf.EPH_DIR):
             if f.endswith(".txt") and jf._EPH_ID_RE.fullmatch(f[:-4]):
@@ -349,7 +349,7 @@ def eph_cancel_end(eid):
 
 
 async def run_eph_pipeline(websocket, eid, messages):
-    """Privat-Chat: Verlauf kommt vom Browser, Antwort wird nur durchgereicht (kein Speichern, keine Sprachausgabe)."""
+    """Private chat: the history comes from the browser, the answer is only passed through (no storing, no speech output)."""
     await _send(websocket, {"type": "status", "value": "thinking"})
 
     async def keepalive():
@@ -397,7 +397,7 @@ async def run_eph_pipeline(websocket, eid, messages):
 
 @app.get("/files/{fid}/{name}")
 async def get_file(fid: str, name: str):
-    """Download der vom Datei-Werkzeug erzeugten Dateien (Word, Excel, PowerPoint, PDF)."""
+    """Download of the files created by the file tool (Word, Excel, PowerPoint, PDF)."""
     if not re.fullmatch(r"[0-9a-f]{12}", fid) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", name) \
             or ".." in name:
         return JSONResponse({"error": "nicht gefunden"}, status_code=404)
@@ -408,7 +408,7 @@ async def get_file(fid: str, name: str):
 
 
 async def _kb_push(ws, res=None, err=None):
-    """Liste der Wissensbasis (und laufende Aufnahmen) an den Browser; res/err = Ergebnis einer gerade fertigen Aufnahme."""
+    """List of the knowledge base (and running ingestions) to the browser; res/err = result of an ingestion that just finished."""
     try:
         docs = await asyncio.to_thread(jkb.list_docs)
         jb = await asyncio.to_thread(jkb.jobs)
@@ -427,8 +427,8 @@ async def voice_ws(websocket: WebSocket):
     await websocket.accept()
     doc_parts = {}
     eph_ids = set()
-    # Empfang laeuft dauernd im Hintergrund: waehrend eine Antwort laeuft (z.B. Bildgenerierung, 40+ s ohne Text) muss der Server
-    # weiter Frames lesen, sonst werden Pongs nicht verarbeitet und die Verbindung stirbt mit "1011 keepalive ping timeout".
+    # Receiving runs continuously in the background: while an answer is running (e.g. image generation, 40+ s without text) the server must
+    # keep reading frames, otherwise pongs are not processed and the connection dies with "1011 keepalive ping timeout".
     inbox: asyncio.Queue = asyncio.Queue()
 
     async def _reader():
@@ -506,7 +506,7 @@ async def voice_ws(websocket: WebSocket):
                     await run_eph_pipeline(websocket, eid, msgs)
                     continue
 
-                # Verlauf fuer die Anzeige (nach Reload / auf einem anderen Geraet)
+                # history for the display (after reload / on another device)
                 if payload.get("type") == "history":
                     try:
                         async with httpx.AsyncClient(timeout=5.0) as c:
@@ -537,7 +537,7 @@ async def voice_ws(websocket: WebSocket):
                             await websocket.send_json({"type": "pc_ack", "action": t, "ok": False})
                     continue
 
-                # Ein Gespraech loeschen
+                # delete a conversation
                 if payload.get("type") == "delete":
                     async with httpx.AsyncClient(timeout=5.0) as c:
                         r = await c.post(ROUTING_PROXY + "/api/conversations/delete",
@@ -547,7 +547,7 @@ async def voice_ws(websocket: WebSocket):
                                                "was_current": bool(d.get("was_current"))})
                     continue
 
-                # Bild hochladen (kommt als Base64 vom Browser, dort schon verkleinert)
+                # upload image (arrives as Base64 from the browser, already downscaled there)
                 if payload.get("type") == "upload":
                     try:
                         b64 = str(payload.get("data") or "")
@@ -567,7 +567,7 @@ async def voice_ws(websocket: WebSocket):
                         await websocket.send_json({"type": "uploaded", "ok": False, "key": payload.get("key")})
                     continue
 
-                # Dokument hochladen (PDF, Word, PowerPoint, Excel, Text ...) in Stuecken, damit grosse Dateien gehen
+                # upload document (PDF, Word, PowerPoint, Excel, text ...) in chunks so that large files work
                 if payload.get("type") == "upload_doc":
                     key = str(payload.get("key"))
                     try:
@@ -595,7 +595,7 @@ async def voice_ws(websocket: WebSocket):
                                                    "key": payload.get("key"), "error": str(e)[:200]})
                     continue
 
-                # Wissensbasis: Liste, Upload (in Stuecken, Indexierung im Hintergrund), Loeschen
+                # knowledge base: list, upload (in chunks, indexing in the background), delete
                 if payload.get("type") in ("kb_list", "kb_upload", "kb_del"):
                     kt = payload.get("type")
                     try:
@@ -625,7 +625,7 @@ async def voice_ws(websocket: WebSocket):
                         await websocket.send_json({"type": "kb_list", "error": str(e)[:200], "docs": [], "jobs": []})
                     continue
 
-                # Vorschau einer erzeugten Datei
+                # preview of a generated file
                 if payload.get("type") == "preview":
                     p = str(payload.get("path") or "")
                     data = None
@@ -639,7 +639,7 @@ async def voice_ws(websocket: WebSocket):
                     await websocket.send_json({"type": "preview", "path": p, "data": data})
                     continue
 
-                # Nachricht bearbeiten und neu senden
+                # edit message and resend
                 if payload.get("type") == "edit":
                     user_text = (payload.get("value") or "").strip()
                     if not user_text:
@@ -654,7 +654,7 @@ async def voice_ws(websocket: WebSocket):
                     await run_pipeline(websocket, user_text, speak=bool(payload.get("speak", True)))
                     continue
 
-                # Liste der Gespraeche
+                # list of conversations
                 if payload.get("type") == "conversations":
                     try:
                         async with httpx.AsyncClient(timeout=5.0) as c:
@@ -668,7 +668,7 @@ async def voice_ws(websocket: WebSocket):
                         print("[voice_proxy] Gespraeche FEHLER " + repr(e), flush=True)
                     continue
 
-                # Ein frueheres Gespraech wieder aufnehmen
+                # resume an earlier conversation
                 if payload.get("type") == "select":
                     async with httpx.AsyncClient(timeout=5.0) as c:
                         r = await c.post(ROUTING_PROXY + "/api/conversations/select",
@@ -682,7 +682,7 @@ async def voice_ws(websocket: WebSocket):
                     await websocket.send_json({"type": "selected", "ok": ok, "messages": msgs})
                     continue
 
-                # Neues Gespraech: der Proxy vergisst den bisherigen Verlauf
+                # new conversation: the proxy forgets the previous history
                 if payload.get("type") == "reset":
                     async with httpx.AsyncClient(timeout=5.0) as c:
                         r = await c.post(ROUTING_PROXY + "/api/history/reset",
@@ -708,13 +708,13 @@ async def voice_ws(websocket: WebSocket):
             pass
     finally:
         reader_task.cancel()
-        for _eid in eph_ids:      # Privat-Chat verlassen (Tab zu): Dateien nach kurzer Schonfrist loeschen
+        for _eid in eph_ids:      # leave private chat (tab closed): delete files after a short grace period
             eph_schedule_end(_eid)
 
 
 @app.get("/monitor")
 async def monitor_page():
-    """Monitoring-Seite (gleiche Herkunft wie die Daten, kein CORS noetig)."""
+    """Monitoring page (same origin as the data, no CORS needed)."""
     return FileResponse("/opt/jarvis/monitor.html", media_type="text/html", headers={"Cache-Control": "no-store"})
 
 

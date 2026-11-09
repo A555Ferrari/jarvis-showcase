@@ -1,4 +1,4 @@
-"""iCloud-Kontakte lesen (CardDAV, nur lesen). Gleiches App-Passwort wie Kalender/Mail."""
+"""Read iCloud contacts (CardDAV, read-only). Same app-specific password as calendar/mail."""
 import re, time, html
 import httpx
 import jarvis_icloud as ic
@@ -88,7 +88,7 @@ def search(q, limit=8):
         hay = _norm(x["name"] + x["org"] + "".join(x["mail"]))
         if nq in hay or (len(digits) >= 4 and any(digits in re.sub(r"\D", "", t) for t in x["tel"])):
             out.append(x)
-    # alle Wortteile muessen vorkommen (z.B. "Max Muster"), wenn der Gesamt-Treffer fehlt
+    # all name parts must occur (e.g. "Max Muster") when there is no full-name match
     if not out:
         parts = [_norm(w) for w in q.split() if len(w) > 1]
         for x in items:

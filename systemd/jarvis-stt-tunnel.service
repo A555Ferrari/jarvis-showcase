@@ -1,5 +1,5 @@
 [Unit]
-Description=JARVIS Tunnel zum Gaming-PC (STT 18765 -> 8765, ComfyUI 18188 -> 8188)
+Description=JARVIS tunnel to the gaming PC (STT 18765 -> 8765, ComfyUI 18188 -> 8188)
 After=network-online.target
 Wants=network-online.target
 

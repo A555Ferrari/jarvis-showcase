@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Monitoring mit Verlauf (18.10.2026): jede Minute ein Messpunkt vom Laptop-Server, 14 Tage aufbewahrt.
+"""Monitoring with history (18.10.2026): one measurement per minute from the laptop server, kept for 14 days.
 
-Gemessen: CPU-Last und -Temperatur, RAM, Swap, Festplatte, SSD-Temperatur, Akku/Netzteil (der Server ist ein
-Laptop: Akkubetrieb = Stromausfall), Netzwerkverkehr, Gaming-PC an/aus, Antwortzeiten von Proxy, Voice und
-Ollama, Neustarts der Dienste, laufende Container. Dazu die Antwortzeit jeder Chat-Anfrage (vom Proxy erfasst).
+Measured: CPU load and temperature, RAM, swap, disk, SSD temperature, battery/power supply (the server is a
+laptop: running on battery = power outage), network traffic, gaming PC on/off, response times of proxy, voice and
+Ollama, service restarts, running containers. Plus the response time of every chat request (recorded by the proxy).
 
-Geschrieben vom Waechter (jarvis_watch.py -> sample_store), gelesen vom Proxy (/api/monitor, Werkzeug
-"monitoring") und von der Monitoring-Seite (voice_proxy /monitor).
+Written by the watchdog (jarvis_watch.py -> sample_store), read by the proxy (/api/monitor, tool
+"monitoring") and by the monitoring page (voice_proxy /monitor).
 """
 import json, os, shutil, sqlite3, statistics, subprocess, time, urllib.request
 
@@ -159,7 +159,7 @@ def report(hours: float = 24) -> dict:
     tx = max(0, rows[-1]["tx"] - rows[0]["tx"]) if rows[-1]["tx"] >= rows[0]["tx"] else None
     out["net_gb"] = {"rx": round(rx / 1e9, 2) if rx is not None else None, "tx": round(tx / 1e9, 2) if tx is not None else None}
     r0, r1 = rows[0].get("restarts") or {}, rows[-1].get("restarts") or {}
-    out["restarts"] = {u: r1[u] - r0.get(u, 0) for u in r1 if r1[u] - r0.get(u, 0) > 0 and u != "jarvis-stt-tunnel"}   # Tunnel startet bei PC aus im Takt neu (gewollt)
+    out["restarts"] = {u: r1[u] - r0.get(u, 0) for u in r1 if r1[u] - r0.get(u, 0) > 0 and u != "jarvis-stt-tunnel"}   # the tunnel restarts in a loop while the PC is off (intended)
     out["svc_down_min"] = {}
     for u in SERVICES:
         down = sum(step for r in rows if (r.get("svc") or {}).get(u) not in (None, "active"))
@@ -204,7 +204,7 @@ def series(hours: float = 24, points: int = 240) -> list:
 
 
 def text(hours: float = 24, en: bool = False) -> str:
-    """Kurzbericht fuer das Agent-Werkzeug (Fakten, das Modell formuliert)."""
+    """Short report for the agent tool (facts only, the model words it)."""
     r = report(hours)
     if not r.get("now"):
         return "No monitoring data yet (the watcher records one sample per minute)."
