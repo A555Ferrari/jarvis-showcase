@@ -172,7 +172,8 @@ Every change is tested on the real system and secured with regression tests.
 - **Measurable quality:** fixed test questions per model, results as a table here in the docs.
 - **Pi-hole:** block ads and trackers across the whole home network.
 - **Speech:** test a wake word and a better German voice.
-- ~~Small tools such as QR codes, random numbers and passwords, unit conversion~~ done, plus games and monitoring.
+
+Already done and therefore no longer on the list: small tools (QR codes, random numbers, passwords, unit conversion), games and monitoring.
 
 ## Project structure
 

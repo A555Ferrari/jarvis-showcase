@@ -172,7 +172,8 @@ Jede Änderung wird am echten System getestet und mit Regressionstests abgesiche
 - **Messbare Qualität:** feste Testfragen pro Modell, Ergebnisse als Tabelle hier in der Doku.
 - **Pi-hole:** Werbung und Tracker im ganzen Heimnetz blockieren.
 - **Sprache:** ein Aktivierungswort („Wake-Word“) und eine bessere deutsche Stimme testen.
-- ~~Kleine Werkzeuge wie QR-Codes, Zufallszahlen und Passwörter, Einheiten umrechnen~~ erledigt, dazu Spiele und Monitoring.
+
+Schon umgesetzt und deshalb nicht mehr auf der Liste: kleine Werkzeuge (QR-Codes, Zufallszahlen, Passwörter, Einheiten umrechnen), Spiele und das Monitoring.
 
 ## Projektstruktur
 

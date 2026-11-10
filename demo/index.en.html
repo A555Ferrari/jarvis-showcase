@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JARVIS · Live demo</title>
+<title>JARVIS · Interactive demo (scripted)</title>
 <style>
 :root{--bg:#04060C;--panel:#070A13;--panel2:#0B101C;--line:#131B2E;--line-c:rgba(61,217,240,.22);--text:#CBD8E8;--soft:#8496AE;--dim:#46566F;--cyan:#3DD9F0;--cyan-dim:rgba(61,217,240,.10);--gold:#FFC145;--red:#FF3355;--green:#19E68C;--mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
@@ -39,9 +39,9 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .how p{font-size:13px;color:var(--soft)}
 .how pre{font:11px/1.5 var(--mono);background:#02040a;border:1px solid var(--line);border-radius:4px;padding:9px;white-space:pre-wrap;color:#9fe9f7}
 .tags{display:flex;flex-wrap:wrap;gap:6px}.tags span{font:9px var(--mono);letter-spacing:.1em;border:1px solid var(--line-c);border-radius:99px;padding:2px 8px;color:var(--soft)}
-@media(max-width:1000px){.app{grid-template-columns:1fr}.side,.how{display:none}body{overflow:auto}}
+@media(max-width:1000px){.app{grid-template-columns:1fr;height:auto;min-height:100vh}.side{display:none}.how{border-left:0;border-top:1px solid var(--line-c)}main{min-height:60vh}#chat{min-height:42vh}body{overflow:auto}}
 </style></head><body><div class="app">
-<aside class="side"><div class="brand"><b>JARVIS</b><div>Private AI assistant · Live demo · <a href="index.html" style="color:var(--cyan)">Deutsch</a></div></div>
+<aside class="side"><div class="brand"><b>JARVIS</b><div>Private AI assistant · Scripted demo · <a href="index.html" style="color:var(--cyan)">Deutsch</a> · <a href="https://github.com/A555Ferrari/jarvis-showcase" style="color:var(--cyan)">GitHub</a></div></div>
 <div class="lbl hud">Scenarios</div><div id="list"></div>
 <div class="sys"><div class="sysrow"><span class="dot on"></span>Laptop (24/7)<b>3B</b></div><div class="sysrow"><span class="dot off" id="pcdot"></span>Gaming PC<b id="pctxt">OFF</b></div></div></aside>
 <main><div id="chat"></div><div id="chips"></div></main>
@@ -79,15 +79,16 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function pc(s){const d=$("pcdot"),t=$("pctxt");d.className="dot "+(s==1?"off":s==2?"on":"wait");t.textContent=s==2?"ON":s==0?"OFF":"OFF"}
 function showHow(n){const h=n.how;how.innerHTML='<h3>How it works</h3><p>'+h.p+'</p><h4>How we solved it</h4><p>'+h.s+'</p><h4>In the code</h4><pre></pre><h4>Built on</h4><div class="tags"></div>';
  how.querySelector("pre").textContent=h.c;const tg=how.querySelector(".tags");h.t.forEach(x=>{const s=document.createElement("span");s.textContent=x;tg.appendChild(s)})}
-function side(cur){list.innerHTML="";ORDER.forEach(k=>{const d=document.createElement("div");d.className="sc"+(cur===k?" cur":"");d.innerHTML=SC[k].t+"<small>"+(SC[k].m||"")+"</small>";d.onclick=()=>{chat.innerHTML="";play(k)};list.appendChild(d)})}
+function side(cur){list.innerHTML="";ORDER.forEach(k=>{const d=document.createElement("div");d.className="sc"+(cur===k?" cur":"");d.innerHTML=SC[k].t+"<small>"+(SC[k].m||"")+"</small>";d.tabIndex=0;d.setAttribute("role","button");d.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();d.click()}};d.onclick=()=>{chat.innerHTML="";play(k)};list.appendChild(d)})}
 function chipsFor(id){chips.innerHTML='<p class="hud">Next question</p>';const nx=SC[id].next;nx.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>play(k);chips.appendChild(b)});if(!nx.length){const b=document.createElement("button");b.textContent="↺ Pick another scenario";b.onclick=()=>{chat.innerHTML="";start()};chips.appendChild(b)}}
-async function play(id){const n=SC[id];chips.innerHTML="";if(ORDER.includes(id))side(id);add("m u",n.u);showHow(n);await sleep(350);
+let run=0;
+async function play(id){const my=++run,n=SC[id];chips.innerHTML="";if(ORDER.includes(id))side(id);add("m u",n.u);showHow(n);await sleep(350);if(my!==run)return;
  if(id==="wake"){pc(0);}
- for(const t of n.tools){add("tool","▸ "+t);await sleep(450)}
- if(id==="wake"){$("pcdot").className="dot wait";await sleep(700)}
- pc(n.pc);if(n.note){add("note",n.note);await sleep(300)}
- const d=add("m j"+(n.fix?" fix":""),"");for(const ch of n.r){d.textContent+=ch;chat.scrollTop=1e9;await sleep(10)}chipsFor(id)}
-function start(){side(null);pc(1);chips.innerHTML='<p class="hud">Pick a scenario on the left or here</p>';ORDER.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>{chat.innerHTML="";play(k)};chips.appendChild(b)});
- how.innerHTML='<h3>How it works</h3><p>JARVIS runs completely locally: a laptop as the router with a small model, a gaming PC as a large compute node when needed.</p><p>Pick a scenario. On the right you can see how we solved it and what it is built on.</p><p style="color:var(--dim)">Answers are pre-scripted (no server); this is how JARVIS behaves in real operation.</p>'}
+ for(const t of n.tools){add("tool","▸ "+t);await sleep(450);if(my!==run)return}
+ if(id==="wake"){$("pcdot").className="dot wait";await sleep(700);if(my!==run)return}
+ pc(n.pc);if(n.note){add("note",n.note);await sleep(300);if(my!==run)return}
+ const d=add("m j"+(n.fix?" fix":""),"");for(const ch of n.r){d.textContent+=ch;chat.scrollTop=1e9;await sleep(10);if(my!==run)return}chipsFor(id)}
+function start(){run++;side(null);pc(1);chips.innerHTML='<p class="hud">Pick a scenario on the left or here</p>';ORDER.forEach(k=>{const b=document.createElement("button");b.textContent=SC[k].u;b.onclick=()=>{chat.innerHTML="";play(k)};chips.appendChild(b)});
+ how.innerHTML='<h3>How it works</h3><p>JARVIS runs completely locally: a laptop as the router with a small model, a gaming PC as a large compute node when needed.</p><p>Pick a scenario. On the right you can see how we solved it and what it is built on.</p><p style="color:var(--dim)">All conversations are prepared, no model runs behind this page. The code excerpts are simplified.</p>'}
 start();
 </script></body></html>
